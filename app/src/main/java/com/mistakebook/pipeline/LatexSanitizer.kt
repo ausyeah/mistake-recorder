@@ -38,8 +38,8 @@ object LatexSanitizer {
      * 于是整条公式退化成红字源码。补上缺失的 `\right.` 就能救回来。
      */
     fun balanceDelimiters(input: String): String {
-        val opens = Regex("\\\\left\\s*").findAll(input).count()
-        val closes = Regex("\\\\right\\s*").findAll(input).count()
+        val opens = LEFT_DELIMITER_REGEX.findAll(input).count()
+        val closes = RIGHT_DELIMITER_REGEX.findAll(input).count()
         if (opens <= closes) return input
         // \left 比 \right 多几个，在末尾补对应数量的 \right.
         return input.trimEnd() + " ".repeat(opens - closes) + "\\right."
@@ -153,6 +153,9 @@ object LatexSanitizer {
     /** 匹配 `\command` 或 `\command*`，只取命令名部分。 */
     private val COMMAND_REGEX = Regex("""\\([a-zA-Z]+)\*?""")
 
+    private val LEFT_DELIMITER_REGEX = Regex("""\\left\s*""")
+    private val RIGHT_DELIMITER_REGEX = Regex("""\\right\s*""")
+
     /**
      * 判断清洗后是否值得尝试渲染。
      *
@@ -164,8 +167,8 @@ object LatexSanitizer {
     fun looksRenderable(input: String): Boolean {
         if (input.isBlank()) return false
         // 还有未配对的 \left 说明补全失败
-        val opens = Regex("""\\left\s*""").findAll(input).count()
-        val closes = Regex("""\\right\s*""").findAll(input).count()
+        val opens = LEFT_DELIMITER_REGEX.findAll(input).count()
+        val closes = RIGHT_DELIMITER_REGEX.findAll(input).count()
         return opens <= closes
     }
 }
