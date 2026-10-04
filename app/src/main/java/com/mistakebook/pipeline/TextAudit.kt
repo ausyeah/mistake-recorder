@@ -297,25 +297,25 @@ object TextAudit {
      * KaTeX 能渲染出东西，但位置会错（标到错误的地方），属于「静默错误」——
      * 比直接报错更难发现，所以单独列出来。
      */
+    private val EMPTY_SCRIPT_PATTERNS = listOf(
+        Regex("[A-Za-z0-9)]_\\s*\\{?\\s*\\}?\\s*(?![A-Za-z0-9{])") to "下标是空的",
+        Regex("[A-Za-z0-9)]\\^\\s*\\{?\\s*\\}?\\s*(?![A-Za-z0-9{])") to "上标是空的"
+    )
+
     private fun checkEmptyScripts(field: Field, text: String, optionIndex: Int): List<Issue> {
-        val issues = mutableListOf<Issue>()
-        val patterns = listOf(
-            Regex("[A-Za-z0-9)]_\\s*\\{?\\s*\\}?\\s*(?![A-Za-z0-9{])") to "下标是空的",
-            Regex("[A-Za-z0-9)]\\^\\s*\\{?\\s*\\}?\\s*(?![A-Za-z0-9{])") to "上标是空的"
-        )
-        for ((re, what) in patterns) {
-            val hit = re.find(text)
-            if (hit != null) {
-                issues += Issue(
-                    field, optionIndex, Kind.SUSPECT,
-                    "公式里出现$what（如 `${hit.value.trim()}`）",
+        return EMPTY_SCRIPT_PATTERNS.mapNotNull { (re, what) ->
+            re.find(text)?.let { hit ->
+                Issue(
+                    field = field,
+                    optionIndex = optionIndex,
+                    kind = Kind.SUSPECT,
+                    summary = "公式里出现$what（如 `${hit.value.trim()}`）",
                     original = hit.value,
                     suggestion = null,
                     note = "标号会跑到奇怪的位置。补上下标内容，或删掉这个空的 _ / ^"
                 )
             }
         }
-        return issues
     }
 
     /**
