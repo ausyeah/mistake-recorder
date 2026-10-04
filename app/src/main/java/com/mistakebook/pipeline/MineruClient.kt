@@ -10,6 +10,7 @@ import com.mistakebook.net.mineru.FileUrlsItem
 import com.mistakebook.net.mineru.FileUrlsRequest
 import com.mistakebook.net.mineru.ExtractResultItem
 import com.mistakebook.net.mineru.MineruApi
+import com.mistakebook.util.isWithinDirectory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -26,19 +27,6 @@ data class MineruOutcome(
     val imagePaths: List<String>,
     val rawDir: File
 )
-
-internal fun isWithinDirectory(directory: File, candidate: File): Boolean {
-    val directoryPath = directory.canonicalFile.path
-    val boundary = if (directoryPath.endsWith(File.separatorChar)) {
-        directoryPath
-    } else {
-        directoryPath + File.separator
-    }
-    return candidate.canonicalFile.path.startsWith(
-        boundary,
-        ignoreCase = File.separatorChar == '\\'
-    )
-}
 
 /**
  * MinerU v4 本地文件上传链路（PRD 4.1）：

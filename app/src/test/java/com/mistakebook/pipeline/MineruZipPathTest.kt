@@ -1,5 +1,6 @@
 package com.mistakebook.pipeline
 
+import com.mistakebook.util.isWithinDirectory
 import java.io.File
 import java.nio.file.Files
 import org.junit.Assert.assertFalse
