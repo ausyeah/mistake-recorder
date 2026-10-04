@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import com.mistakebook.data.AppFiles
+import com.mistakebook.util.isWithinDirectory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -109,10 +110,8 @@ class BackupManager(
                     while (entry != null) {
                         if (!entry.isDirectory) {
                             val target = File(temp, entry.name)
-                            // zip-slip 守卫。**末尾那个分隔符不能省**：
-                            // 少了它，temp 为 /data/restore_1 时
-                            // /data/restore_10/xxx 也会通过 startsWith 检查。
-                            if (target.canonicalPath.startsWith(temp.canonicalPath + File.separator)) {
+                            // zip-slip 守卫：校验解压目标路径在 temp 规范化目录边界内
+                            if (isWithinDirectory(temp, target)) {
                                 target.parentFile?.mkdirs()
                                 target.outputStream().use { zip.copyTo(it) }
                             }
