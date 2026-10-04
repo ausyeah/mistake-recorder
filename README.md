@@ -8,6 +8,11 @@
 
 不上云、不注册账号，API Key 只存本机加密存储。
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/ausyeah/mistake-recorder/android.yml?branch=main&label=CI)](https://github.com/ausyeah/mistake-recorder/actions)
+[![Android](https://img.shields.io/badge/Android-8.0%2B-brightgreen.svg)](https://github.com/ausyeah/mistake-recorder)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.0-purple.svg)](https://github.com/ausyeah/mistake-recorder)
+
 </div>
 
 ---
