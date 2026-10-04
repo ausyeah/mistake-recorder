@@ -37,7 +37,7 @@ jobs:
           echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
 
-      # 公开仓库不配置任何 Secrets：只写 sdk.dir，不注入任何 API Key。
+      # 只写 sdk.dir，不注入任何 API Key。
       # -PprefillKeys=false 让 debug 构建的 BuildConfig 全部是占位符，
       # 安装包内不含任何真实密钥，使用者首次启动后自行填写。
       - name: Generate local.properties (sdk.dir only, no keys)
@@ -50,22 +50,119 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon testDebugUnitTest
 
-      - name: Build APK (placeholder keys)
+      # 发布密钥：仓库维护者在 GitHub Secrets 里配置了 RELEASE_KEYSTORE_B64 等
+      # 4 个变量时，这里还原出 keystore.properties，release 构建即正式签名，
+      # 老用户可以直接覆盖升级（不用卸载重装、不丢数据）。
+      #
+      # fork / PR / 未配置 Secrets 时自动降级为无签名 debug 构建，
+      # CI 保持绿色，任何人都能 clone 构建。
+      - name: Restore release keystore (if Secrets configured)
+        env:
+          KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_B64}" ]; then
+            echo "::warning::未配置签名 Secrets，本次构建为无签名 debug 包"
+            echo "::warning::（配置方法见 README「维护者：正式签名发布」一节）"
+            echo "SIGNING=off" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          # 还原后立刻自检：密钥损坏时要在构建前就发现，而不是产出一个装不上的包
+          keytool -list -keystore "$RUNNER_TEMP/release.jks" \
+            -storepass "$STORE_PASSWORD" > /dev/null
+          cat > keystore.properties <<EOF
+          storeFile=$RUNNER_TEMP/release.jks
+          storePassword=$STORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+          echo "keystore.properties 已生成（口令不回显）"
+          echo "SIGNING=on" >> "$GITHUB_ENV"
+
+      - name: Build APK
+        run: |
+          set -euo pipefail
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug -PprefillKeys=false
-          ls -lh app/build/outputs/apk/debug/
+          if [ "${SIGNING:-off}" = "on" ]; then
+            # release 构建类型本身不注入任何 Key（BuildConfig 是空串），无需 -PprefillKeys
+            ./gradlew --no-daemon assembleRelease
+            ls -lh app/build/outputs/apk/release/
+          else
+            ./gradlew --no-daemon assembleDebug -PprefillKeys=false
+            ls -lh app/build/outputs/apk/debug/
+          fi
+
       # 闸门：产物里绝不能出现 API Key（buildConfigField 的字符串会明文落在 DEX）
       - name: Verify no secrets in APK
         run: |
           set -euo pipefail
           rm -rf /tmp/apkcheck && mkdir -p /tmp/apkcheck
-          unzip -qq app/build/outputs/apk/debug/app-debug.apk -d /tmp/apkcheck
+          if [ "${SIGNING:-off}" = "on" ]; then
+            APK=app/build/outputs/apk/release/app-release.apk
+          else
+            APK=app/build/outputs/apk/debug/app-debug.apk
+          fi
+          unzip -qq "$APK" -d /tmp/apkcheck
           if grep -rEoh 'sk-[A-Za-z0-9]{20,}' /tmp/apkcheck/*.dex 2>/dev/null | head -n 5; then
             echo "::error::APK 中检测到疑似 API Key，拒绝上传"
             exit 1
           fi
           echo "APK 内未检测到 API Key"
+
+      # 闸门（仅正式签名构建）：包必须真的签上名、且不能带 debuggable
+      - name: Verify APK is signed (signed builds only)
+        if: env.SIGNING == 'on'
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/release/app-release.apk
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          # 必须带 --verbose：apksigner verify 不加它时，校验通过也不输出 "Verifies"
+          "$BT/apksigner" verify --verbose --print-certs "$APK" | tee /tmp/sig.txt
+          grep -qE "Number of signers: [1-9]" /tmp/sig.txt || {
+            echo "::error::APK 未报告签名者，拒绝上传"
+            exit 1
+          }
+          # 发布包绝不能是 debuggable（任何用户数据都能被人附加调试读取）
+          if "$BT/aapt2" dump badging "$APK" | grep -q "application-debuggable"; then
+            echo "::error::发布包带上了 android:debuggable，拒绝上传"
+            exit 1
+          fi
+          echo "签名校验通过"
+          grep -E "certificate SHA-256" /tmp/sig.txt || true
+
+      # 闸门（仅正式签名构建）：签名证书必须和仓库记录的指纹一致
+      # fork 用户的密钥当然不一致，所以只在维护者的 main 上强制。
+      - name: Verify signer matches recorded fingerprint (signed builds only)
+        if: env.SIGNING == 'on'
+        run: |
+          set -euo pipefail
+          EXPECTED=$(grep -vE '^[[:space:]]*#' signing/expected-cert-sha256.txt \
+                     | grep -vE '^[[:space:]]*$' | head -1 \
+                     | tr -d '[:space:]:' | tr '[:lower:]' '[:upper:]')
+          ACTUAL=$(grep -E "certificate SHA-256 digest" /tmp/sig.txt | head -1 \
+                   | sed 's/.*:[[:space:]]*//' | tr -d '[:space:]:' | tr '[:lower:]' '[:upper:]')
+          if [ -z "$EXPECTED" ] || [ -z "$ACTUAL" ]; then
+            echo "::warning::读不到期望或实际指纹，跳过一致性比对（期望长度 ${#EXPECTED}，实际长度 ${#ACTUAL}）"
+            exit 0
+          fi
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            if [ "${GITHUB_REPOSITORY}" = "ausyeah/mistake-recorder" ] && [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+              echo "::error::签名证书与 signing/expected-cert-sha256.txt 不一致"
+              echo "::error::已安装的用户将无法升级这个 App。请勿发布，先核对发布密钥。"
+              echo "::error::  期望: $EXPECTED"
+              echo "::error::  实际: $ACTUAL"
+              exit 1
+            fi
+            echo "::warning::签名与仓库记录不一致（非维护者仓库，跳过）"
+            echo "  期望: $EXPECTED"
+            echo "  实际: $ACTUAL"
+            exit 0
+          fi
+          echo "签名证书与仓库记录一致: $ACTUAL"
 
       - name: Prepare APK
         run: |
@@ -73,7 +170,13 @@ jobs:
           REF="${GITHUB_REF_NAME}"
           SAFE_REF=$(echo "$REF" | tr '/' '-')
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk "dist/mistakebook-${SAFE_REF}-android.apk"
+          # 命名规范：mistakebook-<version>-android.apk
+          # 不再用 `-debug` 后缀——公开分发的就是唯一产物
+          if [ "${SIGNING:-off}" = "on" ]; then
+            cp app/build/outputs/apk/release/app-release.apk "dist/mistakebook-${SAFE_REF}-android.apk"
+          else
+            cp app/build/outputs/apk/debug/app-debug.apk "dist/mistakebook-${SAFE_REF}-android.apk"
+          fi
           ls -lh dist/
 
       - name: Upload artifact
@@ -92,9 +195,13 @@ jobs:
           fail_on_unmatched_files: true
           body: |
             ## 安装与首次配置
+
             1. 下载 `mistakebook-${{ github.ref_name }}-android.apk` 安装（需允许「安装未知来源应用」）
             2. 首次启动后进入 **设置**，填写两个密钥：
                - **MinerU API Key** —— 在 MinerU 开放平台申请
                - **大模型接入** —— 填接口地址与 API Key，点「获取模型列表」可自动选模型名
 
-            > 本安装包不预置任何 API Key。密钥由使用者自行填写，只存本机加密存储。
+            > **本安装包不预置任何 API Key。** 密钥由使用者自行填写，只存本机加密存储。
+            > 早期版本曾把密钥打进安装包，而 APK 里的密钥可以被直接提取。
+            > 现已改为由使用者自行填写；如果你在旧版本里填过密钥，
+            > 建议到服务商后台把它们重置一次。

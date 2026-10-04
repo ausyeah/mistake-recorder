@@ -109,7 +109,11 @@
 2. 传输到手机（或用浏览器直接下载）后点击安装，需允许「安装未知来源应用」；
 3. 安装包**不预置任何 API Key**，首次启动后请按下方教程在设置页自行填写。
 
-> 当前 Release 为调试签名安装包，升级不同版本时如遇签名不一致需先卸载旧版。
+> 正式发布版本使用**固定发布签名**，升级时可覆盖安装、不会丢数据。
+> 若仓库未配置签名 Secrets，CI 产出的只是无签名 debug 包（仅能本机试用、升级需卸载）；
+> 配置方法见下文「维护者：正式签名发布」。
+>
+> 无论哪种包都**不预置任何 API Key**，首次启动后在设置页自行填写。
 
 ### 方式二：本地构建
 
@@ -255,6 +259,38 @@ app/src/main/java/com/mistakebook/
 - **不预置任何 API Key**：`buildConfigField` 注入的字符串会明文落在 DEX，所以公开安装包一律注入占位符，由使用者自行填写；
 - **Key 只存本机**：`EncryptedSharedPreferences`，不进日志、不随应用上传；
 - 本仓库无密钥文件：`local.properties` / `keystore.properties` 等已被 `.gitignore` 拦截，仓库内只有占位模板。
+
+## 维护者：正式签名发布
+
+正式签名让 Release 之间的升级可以**直接覆盖安装**（不用卸载、不丢数据）。
+签名密钥本体永不进仓库，只以 base64 存在仓库的 GitHub Secrets 里，CI 构建时还原。
+
+### 一次性配置（仓库 Settings → Secrets and variables → Actions）
+
+| Secret 名 | 内容 |
+|---|---|
+| `RELEASE_KEYSTORE_B64` | 发布 keystore 文件的 base64 |
+| `RELEASE_STORE_PASSWORD` | keystore 口令 |
+| `RELEASE_KEY_ALIAS` | 密钥别名 |
+| `RELEASE_KEY_PASSWORD` | 密钥口令 |
+
+生成 base64（Windows PowerShell）：
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes('C:\path\to\release.jks'))
+```
+
+### 发版（打 tag 即出签名包）
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\release.ps1 -Tag "v0.0.2"
+```
+
+无需任何本地构建——CI 会自动：还原密钥 → `assembleRelease` 签名 → 校验签名
+与 `signing/expected-cert-sha256.txt` 记录一致 → 扫描 APK 无 Key → 挂到 Release。
+
+> 没配 Secrets 也不会让 CI 变红：此时降级为无签名 debug 包（仅试用、升级需卸载）。
+> fork 与 PR 走同样降级路径，任何贡献者都能本地构建。
 
 ## 本地编译与测试
 
