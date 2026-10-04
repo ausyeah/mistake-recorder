@@ -17,17 +17,56 @@
 
 ---
 
-<!-- ============================================================ -->
-<!-- 待补充：功能演示录屏（占位）                                -->
-<!-- 录制清单见 docs/RECORDING_CHECKLIST.md                      -->
-<!-- 建议格式：1 分钟总览视频，嵌入下方                             -->
-<!-- ============================================================ -->
+## 实机截图
 
-## 演示
+以下均为真实设备截图。按「配置与录入 → AI 整理 → 对话 → 打印」的使用流程分组展示。
 
-> 📹 **待补充：功能演示录屏**（录制清单见 [docs/RECORDING_CHECKLIST.md](docs/RECORDING_CHECKLIST.md)）
+### 配置与录入
 
-> 🖼 **待补充：核心界面截图**（首页 / 拍照裁剪 / 识别进度 / 编辑页 / 列表 / 详情 / 打印导出 / AI 对话 / 设置）
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/settings-api.jpg" width="260" alt="MinerU 与大模型配置"><br><sub>MinerU 与大模型配置（DeepSeek 等兼容服务）</sub></td>
+<td align="center"><img src="docs/screenshots/settings-options.jpg" width="260" alt="其他设置选项"><br><sub>其他设置选项</sub></td>
+<td align="center"><img src="docs/screenshots/home.jpg" width="260" alt="主页"><br><sub>主页</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/crop-demo.jpg" width="260" alt="裁切图片"><br><sub>框选题目与裁切</sub></td>
+<td align="center"><img src="docs/screenshots/upload-1.jpg" width="260" alt="上传处理一"><br><sub>上传与识别进度 · 1</sub></td>
+<td align="center"><img src="docs/screenshots/upload-2.jpg" width="260" alt="上传处理二"><br><sub>上传与识别进度 · 2</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/upload-3.jpg" width="260" alt="上传处理三"><br><sub>上传与识别进度 · 3</sub></td>
+<td align="center"><img src="docs/screenshots/edit-result-1.jpg" width="260" alt="识别结果编辑一"><br><sub>识别结果与题目编辑 · 1</sub></td>
+<td align="center"><img src="docs/screenshots/edit-result-2.jpg" width="260" alt="识别结果编辑二"><br><sub>识别结果与题目编辑 · 2</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/question-detail.jpg" width="260" alt="题目详情"><br><sub>题目详情</sub></td>
+<td align="center"><img src="docs/screenshots/home-questions.jpg" width="260" alt="主页题目排布"><br><sub>主页题目排布</sub></td>
+</tr>
+</table>
+
+### AI 对话
+
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/chat-conversation.jpg" width="260" alt="AI 对话界面"><br><sub>题目 AI 对话</sub></td>
+<td align="center"><img src="docs/screenshots/chat-history.jpg" width="260" alt="AI 对话记录"><br><sub>AI 对话记录</sub></td>
+</tr>
+</table>
+
+### 打印与 PDF
+
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/print-options.jpg" width="260" alt="打印错题选项"><br><sub>选择题目与打印选项</sub></td>
+<td align="center"><img src="docs/screenshots/browser-preview.jpg" width="260" alt="浏览器打印预览"><br><sub>浏览器预览效果</sub></td>
+<td align="center"><img src="docs/screenshots/system-print-1.jpg" width="260" alt="系统打印操作一"><br><sub>系统打印操作</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/system-print-2.jpg" width="260" alt="系统打印操作二"><br><sub>系统打印操作</sub></td>
+<td align="center"><img src="docs/screenshots/final-pdf.jpg" width="260" alt="最终 PDF"><br><sub>最终 PDF 呈现效果</sub></td>
+</tr>
+</table>
 
 ---
 
