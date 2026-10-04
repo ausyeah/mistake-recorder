@@ -46,13 +46,15 @@ jobs:
           cat local.properties
 
       - name: Run unit tests
-        run: ./gradlew --no-daemon testDebugUnitTest
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon testDebugUnitTest
 
       - name: Build APK (placeholder keys)
         run: |
+          chmod +x gradlew
           ./gradlew --no-daemon assembleDebug -PprefillKeys=false
           ls -lh app/build/outputs/apk/debug/
-
       # 闸门：产物里绝不能出现 API Key（buildConfigField 的字符串会明文落在 DEX）
       - name: Verify no secrets in APK
         run: |
