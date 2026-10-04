@@ -67,18 +67,7 @@ abstract class MistakeBookDatabase : RoomDatabase() {
          */
         val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `notebooks` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        `name` TEXT NOT NULL,
-                        `sortOrder` INTEGER NOT NULL,
-                        `isDefault` INTEGER NOT NULL,
-                        `createdAt` INTEGER NOT NULL,
-                        `updatedAt` INTEGER NOT NULL
-                    )
-                    """.trimIndent()
-                )
+                db.execSQL(SQL_CREATE_NOTEBOOKS)
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_notebooks_sortOrder` ON `notebooks` (`sortOrder`)"
                 )
@@ -100,24 +89,76 @@ abstract class MistakeBookDatabase : RoomDatabase() {
          * 建表 SQL **必须与实体声明逐字对应**（列名、类型、可空性、索引名、
          * 外键 onDelete），否则 schema 校验同样会失败。改了实体就要同步改这里。
          */
+        private val SQL_CREATE_NOTEBOOKS = """
+            CREATE TABLE IF NOT EXISTS `notebooks` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `name` TEXT NOT NULL,
+                `sortOrder` INTEGER NOT NULL,
+                `isDefault` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+        """.trimIndent()
+
+        private val SQL_CREATE_CHAT_SESSIONS = """
+            CREATE TABLE IF NOT EXISTS `chat_sessions` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `questionId` INTEGER,
+                `title` TEXT NOT NULL,
+                `titleLocked` INTEGER NOT NULL,
+                `model` TEXT NOT NULL,
+                `messageCount` INTEGER NOT NULL,
+                `lastPreview` TEXT NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                `deletedAt` INTEGER
+            )
+        """.trimIndent()
+
+        private val SQL_CREATE_CHAT_MESSAGES = """
+            CREATE TABLE IF NOT EXISTS `chat_messages` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `sessionId` INTEGER NOT NULL,
+                `role` TEXT NOT NULL,
+                `content` TEXT NOT NULL,
+                `status` TEXT NOT NULL,
+                `errorMessage` TEXT,
+                `attachmentIdsJson` TEXT NOT NULL,
+                `questionId` INTEGER,
+                `injected` INTEGER NOT NULL,
+                `promptTokens` INTEGER NOT NULL,
+                `completionTokens` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                FOREIGN KEY(`sessionId`) REFERENCES `chat_sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(`questionId`) REFERENCES `questions`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL
+            )
+        """.trimIndent()
+
+        private val SQL_CREATE_CHAT_ATTACHMENTS = """
+            CREATE TABLE IF NOT EXISTS `chat_attachments` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `messageId` INTEGER NOT NULL,
+                `sessionId` INTEGER NOT NULL,
+                `kind` TEXT NOT NULL,
+                `localPath` TEXT NOT NULL,
+                `fileName` TEXT NOT NULL,
+                `mimeType` TEXT NOT NULL,
+                `status` TEXT NOT NULL,
+                `sizeBytes` INTEGER NOT NULL,
+                `widthPx` INTEGER NOT NULL,
+                `heightPx` INTEGER NOT NULL,
+                `textExcerpt` TEXT NOT NULL,
+                `extractedChars` INTEGER NOT NULL,
+                `errorMessage` TEXT,
+                `createdAt` INTEGER NOT NULL,
+                FOREIGN KEY(`messageId`) REFERENCES `chat_messages`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+        """.trimIndent()
+
         val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `chat_sessions` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        `questionId` INTEGER,
-                        `title` TEXT NOT NULL,
-                        `titleLocked` INTEGER NOT NULL,
-                        `model` TEXT NOT NULL,
-                        `messageCount` INTEGER NOT NULL,
-                        `lastPreview` TEXT NOT NULL,
-                        `createdAt` INTEGER NOT NULL,
-                        `updatedAt` INTEGER NOT NULL,
-                        `deletedAt` INTEGER
-                    )
-                    """.trimIndent()
-                )
+                db.execSQL(SQL_CREATE_CHAT_SESSIONS)
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_chat_sessions_questionId` ON `chat_sessions` (`questionId`)"
                 )
@@ -128,27 +169,7 @@ abstract class MistakeBookDatabase : RoomDatabase() {
                     "CREATE INDEX IF NOT EXISTS `index_chat_sessions_deletedAt` ON `chat_sessions` (`deletedAt`)"
                 )
 
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `chat_messages` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        `sessionId` INTEGER NOT NULL,
-                        `role` TEXT NOT NULL,
-                        `content` TEXT NOT NULL,
-                        `status` TEXT NOT NULL,
-                        `errorMessage` TEXT,
-                        `attachmentIdsJson` TEXT NOT NULL,
-                        `questionId` INTEGER,
-                        `injected` INTEGER NOT NULL,
-                        `promptTokens` INTEGER NOT NULL,
-                        `completionTokens` INTEGER NOT NULL,
-                        `createdAt` INTEGER NOT NULL,
-                        `updatedAt` INTEGER NOT NULL,
-                        FOREIGN KEY(`sessionId`) REFERENCES `chat_sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
-                        FOREIGN KEY(`questionId`) REFERENCES `questions`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL
-                    )
-                    """.trimIndent()
-                )
+                db.execSQL(SQL_CREATE_CHAT_MESSAGES)
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_chat_messages_sessionId` ON `chat_messages` (`sessionId`)"
                 )
@@ -159,28 +180,7 @@ abstract class MistakeBookDatabase : RoomDatabase() {
                     "CREATE INDEX IF NOT EXISTS `index_chat_messages_questionId` ON `chat_messages` (`questionId`)"
                 )
 
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `chat_attachments` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        `messageId` INTEGER NOT NULL,
-                        `sessionId` INTEGER NOT NULL,
-                        `kind` TEXT NOT NULL,
-                        `localPath` TEXT NOT NULL,
-                        `fileName` TEXT NOT NULL,
-                        `mimeType` TEXT NOT NULL,
-                        `status` TEXT NOT NULL,
-                        `sizeBytes` INTEGER NOT NULL,
-                        `widthPx` INTEGER NOT NULL,
-                        `heightPx` INTEGER NOT NULL,
-                        `textExcerpt` TEXT NOT NULL,
-                        `extractedChars` INTEGER NOT NULL,
-                        `errorMessage` TEXT,
-                        `createdAt` INTEGER NOT NULL,
-                        FOREIGN KEY(`messageId`) REFERENCES `chat_messages`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
-                    )
-                    """.trimIndent()
-                )
+                db.execSQL(SQL_CREATE_CHAT_ATTACHMENTS)
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_chat_attachments_messageId` ON `chat_attachments` (`messageId`)"
                 )
