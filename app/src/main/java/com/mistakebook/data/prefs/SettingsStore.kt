@@ -1,0 +1,330 @@
+package com.mistakebook.data.prefs
+
+import android.content.Context
+import android.content.SharedPreferences
+import android.util.Log
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import com.mistakebook.BuildConfig
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+
+private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "mistakebook_settings"
+)
+
+/**
+ * 设置仓储。
+ *
+ * - 非敏感项（Base URL、模型名、打印默认、提醒开关）走 DataStore Preferences；
+ * - 敏感项（MinerU Key、大模型 Key、整套接入配置 JSON）走 EncryptedSharedPreferences；
+ * - 首次运行且两项都为空时，用 debug 的 buildConfig 预填值兜底（release 恒为空）。
+ */
+class SettingsStore(context: Context) {
+
+    private val appContext = context.applicationContext
+
+    private val securePrefs: SharedPreferences by lazy {
+        val masterKey = MasterKey.Builder(appContext)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        EncryptedSharedPreferences.create(
+            appContext,
+            SECURE_FILE,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        ) as SharedPreferences
+    }
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
+
+    /**
+     * 密文部分的版本号。
+     *
+     * ## 为什么需要它
+     * `settings` 这个 Flow 原本只由 DataStore 驱动，但**密钥类字段存在
+     * EncryptedSharedPreferences 里**。写 SharedPreferences 不会通知 DataStore，
+     * 于是 `setMineruKey()` 写完之后快照永远不会重发：
+     * 受控的 `TextField` 拿到的还是旧值（空串），每敲一个字就被弹回去——
+     * 表现就是「输入框打不进字」。
+     *
+     * 以前这个洞被 buildConfig 预填掩盖了：框里本来就有值，用户从不需要输入。
+     * 公开分发包改成不预填密钥后，它立刻暴露出来。
+     *
+     * 用 `Flow<Long>` 而不是 SharedPreferences.OnSharedPreferenceChangeListener：
+     * 后者拿不到「改动来自哪一次写入」，容易和 combine 出的初始值打架；
+     * 版本号是显式单调递增，语义清楚，也不依赖回调线程。
+     */
+    private val secureVersion = MutableStateFlow(0L)
+
+    val settings: Flow<SettingsSnapshot> = combine(
+        appContext.settingsDataStore.data,
+        secureVersion
+    ) { prefs, _ -> snapshot(prefs) }
+
+    suspend fun snapshotNow(): SettingsSnapshot =
+        snapshot(appContext.settingsDataStore.data.first())
+
+    private fun snapshot(prefs: Preferences): SettingsSnapshot {
+        val profiles = loadProfiles()
+        val activeId = prefs[KEY_ACTIVE_PROFILE] ?: profiles.firstOrNull()?.id
+        return SettingsSnapshot(
+            // 占位符不能当成真 Key，否则「已配置」判断会误判为通过
+            mineruKey = readSecure(SECURE_MINERU_KEY).ifBlank {
+                if (BuildConfigKeys.isPlaceholder(BuildConfig.MINERU_API_KEY)) "" else BuildConfig.MINERU_API_KEY
+            },
+            llmProfiles = profiles,
+            activeProfileId = activeId,
+            // mineruModelVersion / ocrLanguage / forceOcr 已固定，不再从 prefs 读。
+            // 旧版本存下的值会被自然忽略——它们不再是 SettingsSnapshot 的构造参数。
+            attachOriginalImage = prefs[KEY_ATTACH_IMAGE] ?: true,
+            imageLongEdgePx = prefs[KEY_IMAGE_LONG_EDGE] ?: 1280,
+            // 默认不带原图：打印错题本是给手写重做用的，贴照片反而挤掉作答空间。
+            // 需要时可到设置页打开。
+            printIncludeImage = prefs[KEY_PRINT_IMAGE] ?: false,
+            printShowAnswer = prefs[KEY_PRINT_ANSWER] ?: false,
+            printBlankRedo = prefs[KEY_PRINT_BLANK] ?: true,
+            printBlankHeightPt = prefs[KEY_PRINT_BLANK_PT] ?: 100,
+            enhancePhotos = prefs[KEY_ENHANCE_PHOTOS] ?: true,
+            reviewReminderEnabled = prefs[KEY_REMINDER_ON] ?: true,
+            reminderHour = prefs[KEY_REMINDER_HOUR] ?: 20,
+            reminderMinute = prefs[KEY_REMINDER_MINUTE] ?: 0
+        )
+    }
+
+    // ===== 大模型接入配置（多套，可切换） =====
+
+    /**
+     * 读取已保存的接入配置。
+     *
+     * 自愈逻辑：只要已存的配置里**一个都不可用**，就注入一份 buildConfig 预填兜底。
+     * 早期版本在 Secrets 为空时会把空配置写进存储，之后 `parsed.isNotEmpty()` 恒成立、
+     * 再也不会重新播种，于是这套装了预填 Key 的包也永远过不了 Key 门禁。
+     */
+    private fun loadProfiles(): List<LlmProfile> {
+        val raw = readSecure(SECURE_LLM_PROFILES)
+        val stored = if (raw.isBlank()) {
+            emptyList()
+        } else {
+            runCatching { json.decodeFromString<List<LlmProfile>>(raw) }.getOrDefault(emptyList())
+        }
+        val seed = buildConfigSeed()
+        if (stored.none { it.isConfigured() } && seed != null) {
+            val merged = stored.filterNot { it == seed } + seed
+            Log.i(TAG, "已存接入配置均不可用，注入 buildConfig 预填兜底: ${merged.size} 套")
+            // 用 writeProfiles 而不是 saveProfiles：这里正在 snapshot() 内部，
+            // 而 snapshot() 又是 secureVersion 的收集者。saveProfiles 会 bump 版本号，
+            // 等于在 combine 的 transform 里自触发重发，绕成活锁。
+            writeProfiles(merged)
+            return merged
+        }
+        if (stored.isNotEmpty()) return stored
+        if (seed == null) return emptyList()
+        writeProfiles(listOf(seed))
+        return listOf(seed)
+    }
+
+    /**
+     * 本地 debug 包从 buildConfig 取预填。
+     *
+     * **必须识别占位符**：公开分发包（`-PprefillKeys=false`）注入的是
+     * [BuildConfigKeys.PLACEHOLDER]。当成了真 Key 的话，用户会拿着
+     * `REPLACE_IN_SETTINGS` 去请求接口，得到 401，而且完全不知道为什么。
+     */
+    private fun buildConfigSeed(): LlmProfile? {
+        if (BuildConfigKeys.isPlaceholder(BuildConfig.LLM_API_KEY)) return null
+        if (BuildConfig.LLM_BASE_URL.isBlank() ||
+            BuildConfig.LLM_API_KEY.isBlank() ||
+            BuildConfig.LLM_MODEL.isBlank()
+        ) {
+            return null
+        }
+        return LlmProfile(
+            name = "默认配置",
+            baseUrl = BuildConfig.LLM_BASE_URL,
+            apiKey = BuildConfig.LLM_API_KEY,
+            model = BuildConfig.LLM_MODEL
+        ).normalized()
+    }
+
+    /**
+     * 只落盘、不通知观察者。
+     *
+     * 供 [loadProfiles] 的自愈播种使用——那条路径运行在 `settings` Flow 的
+     * 收集栈里，此时 bump [secureVersion] 会让上游立刻重发，形成活锁。
+     * 自愈本身已经把结果 `return` 出去了，调用方拿到的就是最新值，
+     * 不需要额外的重发。
+     */
+    private fun writeProfiles(profiles: List<LlmProfile>) {
+        val normalized = profiles.map { it.normalized() }
+        securePrefs.edit()
+            .putString(SECURE_LLM_PROFILES, json.encodeToString(normalized))
+            .apply()
+    }
+
+    fun saveProfiles(profiles: List<LlmProfile>) {
+        writeProfiles(profiles)
+        secureVersion.value += 1
+    }
+
+    suspend fun upsertProfile(profile: LlmProfile) {
+        val hadActive = appContext.settingsDataStore.data.first()[KEY_ACTIVE_PROFILE].isNullOrBlank()
+        val current = loadProfiles().toMutableList()
+        val index = current.indexOfFirst { it.id == profile.id }
+        val normalized = profile.normalized()
+        if (index >= 0) current[index] = normalized else current.add(normalized)
+        saveProfiles(current)
+        if (hadActive) setActiveProfileId(normalized.id)
+    }
+
+    suspend fun deleteProfile(id: String) {
+        val prefs = appContext.settingsDataStore.data.first()
+        val remaining = loadProfiles().filterNot { it.id == id }
+        saveProfiles(remaining)
+        if (prefs[KEY_ACTIVE_PROFILE] == id) {
+            setActiveProfileId(remaining.firstOrNull()?.id)
+        }
+    }
+
+    suspend fun setActiveProfileId(id: String?) {
+        appContext.settingsDataStore.edit { prefs ->
+            if (id == null) prefs.remove(KEY_ACTIVE_PROFILE) else prefs[KEY_ACTIVE_PROFILE] = id
+        }
+    }
+
+    suspend fun setMineruKey(value: String) {
+        securePrefs.edit().putString(SECURE_MINERU_KEY, value.trim()).apply()
+        // 密钥写在 SharedPreferences 里，DataStore 不会感知这次写入。
+        // 不 bump 的话设置页的受控输入框会一直显示旧值，用户根本打不进字。
+        secureVersion.value += 1
+    }
+
+    // ===== MinerU / 识别参数 =====
+
+    // setMineruModelVersion / setOcrLanguage / setForceOcr 已随设置项一并移除。
+    // 对应的 KEY_ 常量也删了——留着会让人以为还能通过 DataStore 改。
+
+    suspend fun setAttachOriginalImage(value: Boolean) = editBoolean(KEY_ATTACH_IMAGE, value)
+
+    suspend fun setImageLongEdgePx(value: Int) = editInt(KEY_IMAGE_LONG_EDGE, value)
+
+    // ===== 打印默认项 =====
+
+    suspend fun setPrintIncludeImage(value: Boolean) = editBoolean(KEY_PRINT_IMAGE, value)
+
+    suspend fun setPrintShowAnswer(value: Boolean) = editBoolean(KEY_PRINT_ANSWER, value)
+
+    suspend fun setEnhancePhotos(value: Boolean) = editBoolean(KEY_ENHANCE_PHOTOS, value)
+
+    // ===== 裁剪会话（临时编辑状态，存 DataStore 不进 Room）=====
+
+    suspend fun getCropSession(imagePath: String): CropSessionRecord? {
+        val key = cropSessionKey(imagePath)
+        val stored = appContext.settingsDataStore.data.first()[key] ?: return null
+        return CropSessionRecord(stored)
+    }
+
+    suspend fun putCropSession(imagePath: String, record: CropSessionRecord) {
+        val key = cropSessionKey(imagePath)
+        appContext.settingsDataStore.edit { it[key] = record.json }
+    }
+
+    suspend fun removeCropSession(imagePath: String) {
+        val key = cropSessionKey(imagePath)
+        appContext.settingsDataStore.edit { it.remove(key) }
+    }
+
+    val homeQuestionOrder: Flow<List<Long>> = appContext.settingsDataStore.data.map { prefs ->
+        val raw = prefs[KEY_HOME_QUESTION_ORDER].orEmpty()
+        runCatching { json.decodeFromString<List<Long>>(raw) }.getOrDefault(emptyList())
+    }
+
+    suspend fun saveHomeQuestionOrder(ids: List<Long>) {
+        appContext.settingsDataStore.edit { prefs ->
+            prefs[KEY_HOME_QUESTION_ORDER] = json.encodeToString(ids.distinct())
+        }
+    }
+
+    /**
+     * 键里带长度是为了降低哈希碰撞概率：光靠 `hashCode()`，
+     * 两张不同路径的图片撞进同一个键的概率不为零，撞了就互相覆盖裁剪状态。
+     * 拼接顺序固定，不影响正确性，只影响 key 的可读性。
+     */
+    private fun cropSessionKey(imagePath: String) = stringPreferencesKey(
+        "crop_session_${imagePath.length}_${imagePath.hashCode().toString(16)}"
+    )
+    suspend fun setPrintBlankRedo(value: Boolean) = editBoolean(KEY_PRINT_BLANK, value)
+
+    suspend fun setPrintBlankHeightPt(value: Int) = editInt(KEY_PRINT_BLANK_PT, value)
+
+    // ===== 复习提醒 =====
+
+    suspend fun setReviewReminderEnabled(value: Boolean) = editBoolean(KEY_REMINDER_ON, value)
+
+    suspend fun setReminderTime(hour: Int, minute: Int) {
+        appContext.settingsDataStore.edit { prefs ->
+            prefs[KEY_REMINDER_HOUR] = hour
+            prefs[KEY_REMINDER_MINUTE] = minute
+        }
+    }
+
+    // ===== 清空（恢复出厂） =====
+
+    fun clearSecrets() {
+        securePrefs.edit().clear().apply()
+        secureVersion.value += 1
+    }
+
+    private fun readSecure(key: String): String = securePrefs.getString(key, "").orEmpty()
+
+    private suspend fun editString(key: Preferences.Key<String>, value: String) {
+        appContext.settingsDataStore.edit { it[key] = value.trim() }
+    }
+
+    private suspend fun editBoolean(key: Preferences.Key<Boolean>, value: Boolean) {
+        appContext.settingsDataStore.edit { it[key] = value }
+    }
+
+    private suspend fun editInt(key: Preferences.Key<Int>, value: Int) {
+        appContext.settingsDataStore.edit { it[key] = value }
+    }
+
+    private companion object {
+        const val TAG = "MistakeBookSettings"
+        const val SECURE_FILE = "mistakebook_secure_prefs"
+        const val SECURE_MINERU_KEY = "mineru_api_key"
+        const val SECURE_LLM_PROFILES = "llm_profiles_json"
+
+        // KEY_MINERU_MODEL / KEY_OCR_LANGUAGE / KEY_FORCE_OCR 已删：
+        // 对应设置项固定为 vlm / ch / 开启，不再可配。旧库里的这些键会被忽略。
+        val KEY_ATTACH_IMAGE = booleanPreferencesKey("attach_original_image")
+        val KEY_IMAGE_LONG_EDGE = intPreferencesKey("image_long_edge")
+        val KEY_PRINT_IMAGE = booleanPreferencesKey("print_include_image")
+        val KEY_PRINT_ANSWER = booleanPreferencesKey("print_show_answer")
+        val KEY_ENHANCE_PHOTOS = booleanPreferencesKey("enhance_photos")
+        val KEY_PRINT_BLANK = booleanPreferencesKey("print_blank_redo")
+        val KEY_PRINT_BLANK_PT = intPreferencesKey("print_blank_height_pt")
+        val KEY_REMINDER_ON = booleanPreferencesKey("review_reminder_enabled")
+        val KEY_REMINDER_HOUR = intPreferencesKey("reminder_hour")
+        val KEY_REMINDER_MINUTE = intPreferencesKey("reminder_minute")
+        val KEY_ACTIVE_PROFILE = stringPreferencesKey("active_llm_profile")
+        val KEY_HOME_QUESTION_ORDER = stringPreferencesKey("home_question_order")
+    }
+}

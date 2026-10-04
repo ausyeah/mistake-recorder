@@ -1,0 +1,98 @@
+name: Android CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # 直接装 cmdline-tools，不依赖第三方 SDK action
+      - name: Set up Android SDK
+        run: |
+          set -euo pipefail
+          SDK="${RUNNER_TEMP:-/home/runner}/android-sdk"
+          mkdir -p "$SDK/cmdline-tools"
+          curl -sSLo /tmp/clt.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q /tmp/clt.zip -d "$SDK/cmdline-tools"
+          mv "$SDK/cmdline-tools/cmdline-tools" "$SDK/cmdline-tools/latest"
+          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK" --licenses > /dev/null 2>&1 || true
+          "$SDK/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+
+      # 公开仓库不配置任何 Secrets：只写 sdk.dir，不注入任何 API Key。
+      # -PprefillKeys=false 让 debug 构建的 BuildConfig 全部是占位符，
+      # 安装包内不含任何真实密钥，使用者首次启动后自行填写。
+      - name: Generate local.properties (sdk.dir only, no keys)
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          cat local.properties
+
+      - name: Run unit tests
+        run: ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Build APK (placeholder keys)
+        run: |
+          ./gradlew --no-daemon assembleDebug -PprefillKeys=false
+          ls -lh app/build/outputs/apk/debug/
+
+      # 闸门：产物里绝不能出现 API Key（buildConfigField 的字符串会明文落在 DEX）
+      - name: Verify no secrets in APK
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/apkcheck && mkdir -p /tmp/apkcheck
+          unzip -qq app/build/outputs/apk/debug/app-debug.apk -d /tmp/apkcheck
+          if grep -rEoh 'sk-[A-Za-z0-9]{20,}' /tmp/apkcheck/*.dex 2>/dev/null | head -n 5; then
+            echo "::error::APK 中检测到疑似 API Key，拒绝上传"
+            exit 1
+          fi
+          echo "APK 内未检测到 API Key"
+
+      - name: Prepare APK
+        run: |
+          set -euo pipefail
+          REF="${GITHUB_REF_NAME}"
+          SAFE_REF=$(echo "$REF" | tr '/' '-')
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/mistakebook-${SAFE_REF}-android.apk"
+          ls -lh dist/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mistakebook-apk
+          path: dist/*.apk
+          if-no-files-found: error
+
+      - name: Attach APK to Release (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.apk
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          body: |
+            ## 安装与首次配置
+            1. 下载 `mistakebook-${{ github.ref_name }}-android.apk` 安装（需允许「安装未知来源应用」）
+            2. 首次启动后进入 **设置**，填写两个密钥：
+               - **MinerU API Key** —— 在 MinerU 开放平台申请
+               - **大模型接入** —— 填接口地址与 API Key，点「获取模型列表」可自动选模型名
+
+            > 本安装包不预置任何 API Key。密钥由使用者自行填写，只存本机加密存储。

@@ -1,0 +1,415 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">错题本</string>
+
+    <!-- 通用 -->
+    <string name="action_confirm">确认</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_retry">重试</string>
+    <string name="action_save">保存</string>
+    <string name="action_delete">删除</string>
+    <string name="swipe_delete_hint">再点删除</string>
+    <string name="edit_audit">检查</string>
+    <string name="action_undo">撤销</string>
+    <string name="swipe_delete_action">删除这道题</string>
+    <string name="action_copy">复制</string>
+    <string name="action_close">关闭</string>
+    <string name="action_edit">编辑</string>
+    <string name="action_more">更多</string>
+    <string name="action_back">返回</string>
+    <string name="channel_review_name">复习提醒</string>
+    <string name="channel_review_desc">每天提醒待复习的错题</string>
+
+    <!-- 首页 / 列表 -->
+    <!-- home_title 已删：TopAppBar 标题位现在是搜索框，应用名不再显示 -->
+
+    <string name="home_action_settings">设置</string>
+    <string name="home_action_print">打印</string>
+    <string name="home_add_by_photo">拍错题</string>
+    <string name="home_add_from_gallery">从相册选择</string>
+    <string name="home_import_pdf">导入 PDF</string>
+    <string name="home_add_manual">手动录入题目</string>
+    <string name="edit_title_manual">手动录入</string>
+    <string name="edit_manual_hint">手动录入：这道题没有原图。题干、答案、解析照常填写，LaTeX 公式用 $…$ 包住即可渲染。</string>
+    <string name="manual_entry_gate_hint">没有配置 API Key 也可以用：直接手动录入题目，不用识别。</string>
+    <string name="progress_manual_entry">改用手动录入</string>
+    <string name="home_add_title">添加错题</string>
+    <string name="home_empty_title">还没有错题，拍下第一道吧</string>
+
+    <string name="home_filter_all">全部</string>
+    <string name="home_filter_active">未掌握</string>
+    <string name="home_filter_reviewing">复习中</string>
+    <string name="home_filter_mastered">已掌握</string>
+    <string name="notebook_title">错题本</string>
+    <string name="notebook_create">新建错题本</string>
+    <string name="notebook_rename">重命名</string>
+    <string name="notebook_delete">删除错题本</string>
+    <string name="notebook_name_hint">例如：高数竞赛、期末冲刺</string>
+    <string name="notebook_default_badge">默认</string>
+    <string name="notebook_all">全部错题本</string>
+    <string name="notebook_all_hint">不按错题本筛选</string>
+    <string name="notebook_empty">还没有错题本</string>
+    <string name="notebook_empty_hint">点右下角 ➕ 新建一个</string>
+    <string name="notebook_delete_confirm">删除「%1$s」？\n\n本里的题目会移到「默认错题本」，不会被删除。</string>
+    <string name="notebook_delete_confirm_action">删除</string>
+    <string name="notebook_filter">错题本</string>
+    <string name="notebook_manage">管理错题本…</string>
+    <string name="edit_notebook">错题本</string>
+    <string name="detail_notebook">错题本</string>
+    <string name="home_filter_subject">学科</string>
+    <string name="home_filter_mastery">掌握</string>
+    <string name="home_search_hint">搜题干、标题、答案、解析</string>
+    <string name="settings_enhance_photos">照片增强</string>
+    <string name="settings_enhance_photos_desc">导入/拍照后自动转正并做灰度对比度增强，提升识别率</string>
+    <string name="home_search_clear">清空搜索</string>
+    <string name="print_item_index">#%1$d</string>
+    <string name="print_unclassified">未分类</string>
+    <string name="home_subject_all">全部学科</string>
+    <string name="home_deleted_toast">已删除</string>
+    <string name="home_undo">撤销</string>
+    <string name="home_due_badge">待复习</string>
+    <string name="home_trash_cleared">已清空回收站</string>
+
+    <!-- 拍照 -->
+    <string name="capture_title">拍摄错题</string>
+    <string name="capture_flash_auto">闪光灯自动</string>
+    <string name="capture_flash_on">闪光灯开</string>
+    <string name="capture_flash_off">闪光灯关</string>
+    <string name="capture_switch_camera">切换前后摄像头</string>
+    <string name="capture_shutter">快门</string>
+    <string name="capture_gallery">相册</string>
+    <string name="capture_cancel">取消</string>
+    <string name="capture_permission_title">需要相机权限</string>
+    <string name="capture_permission_body">拍摄错题需要相机权限，用于把题目照片传入识别引擎。</string>
+    <string name="capture_permission_grant">去授权</string>
+    <string name="capture_permission_settings">打开系统设置</string>
+    <string name="capture_failed">拍照失败，请重试</string>
+    <string name="capture_gallery_permission">需要相册访问权限</string>
+
+    <!-- 裁剪 -->
+    <string name="crop_rotate">旋转 90°</string>
+    <string name="crop_reset">重置</string>
+    <string name="crop_confirm">确认</string>
+    <string name="crop_mask">涂鸦</string>
+    <string name="crop_mask_done">完成涂鸦</string>
+    <string name="crop_mask_undo">撤销</string>
+    <string name="crop_mask_clear">清空</string>
+    <string name="crop_mask_hint">用白色笔涂掉不想识别的区域（红笔批注、旁边的题、草稿）</string>
+    <string name="crop_preview">预览</string>
+    <string name="crop_preview_title">这张图将送去识别</string>
+    <string name="crop_preview_hint">确认裁剪范围与涂白位置无误。涂白部分不会被识别。</string>
+    <string name="crop_decoding">正在加载照片…</string>
+<string name="crop_decode_failed">图片加载失败：%1$s</string>
+    <string name="crop_decode_missing">照片文件已丢失</string>
+    <string name="crop_decode_oom">照片太大，内存不足</string>
+    <string name="crop_back">返回</string>
+    <string name="crop_too_small">裁剪区域太小，请至少选 100×100</string>
+    <string name="crop_hint">拖动四角手柄框选题目，排除页面噪声</string>
+
+    <!-- 进度页 -->
+    <string name="progress_title">识别进度</string>
+    <string name="progress_cancel">取消识别</string>
+    <string name="progress_cancel_confirm_body">取消后本次识别结果会丢失，临时文件将被删除。</string>
+    <string name="progress_skip_llm">跳过 AI，直接用原始文本</string>
+    <string name="progress_retry">重试</string>
+    <string name="progress_failed_title">识别失败</string>
+    <string name="progress_group_format">第 %1$d / %2$d 张</string>
+    <string name="progress_stage_uploading">上传照片</string>
+    <string name="progress_stage_parsing">MinerU 解析中</string>
+    <string name="progress_stage_llm">AI 整理中</string>
+    <string name="progress_stage_done">识别完成</string>
+    <string name="progress_queue_format">排队中，前方还有 %1$d 张</string>
+
+    <!-- 编辑页 -->
+    <string name="edit_title">确认题目</string>
+    <string name="edit_title_with_index">确认题目 %1$d/%2$d</string>
+    <string name="edit_original_image">题目原图</string>
+    <string name="edit_view_original">查看大图</string>
+    <string name="edit_subject">学科</string>
+    <string name="edit_stem">题干</string>
+    <string name="edit_stem_empty_warning">题干不能为空</string>
+    <string name="edit_options">选项</string>
+    <string name="edit_add_option">添加选项</string>
+    <string name="edit_answer">答案</string>
+    <string name="edit_analysis">解析</string>
+    <string name="edit_error_reason">错因</string>
+    <string name="edit_difficulty">难度</string>
+    <string name="edit_knowledge_points">知识点</string>
+    <string name="edit_knowledge_add_hint">输入知识点后回车添加</string>
+    <string name="edit_note">备注</string>
+    <string name="edit_view_raw">查看原始识别文本</string>
+    <string name="edit_raw_copied">原始识别文本已复制</string>
+    <string name="edit_degraded_warning">AI 整理失败，已保留原始识别文本，请手动整理</string>
+    <string name="edit_truncated_warning">内容过长已截断</string>
+    <string name="edit_preview">渲染预览</string>
+    <string name="edit_save">保存</string>
+    <string name="edit_saved">已保存</string>
+    <string name="edit_prev">上一题</string>
+    <string name="edit_next">下一题</string>
+    <string name="edit_uncertain_title">待确认片段</string>
+    <string name="edit_referenced_images">识别到的插图</string>
+    <string name="edit_image_removed">已移除该插图</string>
+    <string name="edit_no_image_ref">未识别到插图</string>
+    <string name="edit_delete_draft">删除本题</string>
+    <string name="edit_saved_count_format">已保存 %1$d 题</string>
+
+    <!-- 编辑页文本审计 -->
+    <string name="edit_audit_title">检查结果</string>
+    <string name="edit_audit_issue_count_format">发现 %1$d 处问题</string>
+    <string name="edit_audit_empty_description">公式结构与括号配对都没发现问题。</string>
+    <string name="edit_audit_summary_format">%1$d 处可以一键还原，%2$d 处需要手工改。</string>
+    <string name="edit_audit_no_issues">没有发现问题</string>
+    <string name="edit_audit_apply_fixes_format">一键还原这 %1$d 处</string>
+    <string name="edit_audit_current_format">当前：%1$s</string>
+    <string name="edit_audit_replacement_format">改为：%1$s</string>
+
+    <!-- 详情页 -->
+    <string name="detail_title">题目详情</string>
+    <string name="detail_edit">编辑</string>
+    <string name="detail_delete">删除</string>
+    <string name="detail_delete_confirm">删除后可在回收站保留 30 天，确认删除这道题？</string>
+    <string name="detail_mark_mastered">标记已掌握</string>
+    <string name="detail_mastered_hint">已掌握 🎉</string>
+    <string name="detail_add_to_print">加入打印清单</string>
+    <string name="detail_review_history">复习记录</string>
+    <string name="detail_review_empty">还没有复习记录</string>
+    <string name="detail_review_stage_format">第 %1$d 轮</string>
+    <string name="detail_source_text">原始识别文本</string>
+    <string name="detail_knowledge_points">知识点</string>
+    <string name="detail_note">备注</string>
+    <string name="detail_reset_review">重新开始复习</string>
+
+    <!-- 打印 -->
+    <string name="print_title">打印错题</string>
+    <string name="print_select_all">全选当前结果</string>
+    <string name="print_select_invert">反选</string>
+    <string name="reorder_drag_handle">长按拖动调整顺序</string>
+    <string name="print_options">打印选项</string>
+    <string name="print_include_image">包含题目原图</string>
+    <string name="print_show_answer">显示答案与解析</string>
+    <string name="print_blank_redo">留白重做模式</string>
+    <string name="print_blank_height">重做区高度</string>
+    <string name="print_generate">生成 %1$s</string>
+    <string name="print_selected_format">已选 %1$d 题 · 生成 %2$s</string>
+    <string name="print_empty">没有可打印的题目</string>
+    <string name="print_generating">正在生成 PDF…</string>
+    <string name="print_done_title">%1$s 已生成</string>
+    <string name="print_share">分享</string>
+    <string name="print_open">打开</string>
+    <string name="print_skipped_format">跳过的题目：%1$s</string>
+    <string name="print_failed">生成失败：%1$s</string>
+    <string name="print_path_format">文件：%1$s</string>
+
+    <!-- 设置 -->
+    <string name="settings_title">设置</string>
+    <string name="settings_mineru_key">MinerU API Key</string>
+    <string name="settings_hint_mineru_key">请在 MinerU 开放平台申请 API Key 后填入。公开分发的安装包不预置任何密钥。</string>
+    <string name="settings_hint_llm_key">请填入大模型的接口地址与 API Key，点「获取模型列表」可自动选择模型名。公开分发的安装包不预置任何密钥。</string>
+
+    <string name="settings_llm_profiles">大模型接入配置</string>
+
+    <string name="settings_active_profile">当前使用</string>
+    <string name="settings_add_profile">新增配置</string>
+    <string name="settings_edit_profile">编辑配置</string>
+    <string name="settings_delete_profile">删除配置</string>
+    <string name="settings_profile_name">配置名称</string>
+    <string name="settings_base_url">Base URL</string>
+    <string name="settings_api_key">API Key</string>
+    <string name="settings_model">模型名称</string>
+    <string name="settings_model_hint">点右侧按钮自动获取，也可手填</string>
+    <string name="settings_profile_saved">配置已保存</string>
+    <string name="settings_profile_deleted">配置已删除</string>
+    <string name="settings_profile_need_one">至少需要保留一套配置</string>
+    <string name="settings_mineru_params">图片处理</string>
+    <!-- settings_model_version / settings_ocr_language / settings_force_ocr 已删：
+         三项固定为 vlm / ch / 开启，不再暴露给用户 -->
+
+    <string name="settings_attach_image">识别时附带原图给大模型</string>
+
+    <string name="settings_print_defaults">打印默认项</string>
+    <string name="settings_review_reminder">每日复习提醒</string>
+    <string name="settings_reminder_time">提醒时间</string>
+    <string name="settings_test_reminder">立即提醒一次</string>
+    <string name="settings_reminder_pick">选择每日提醒时间</string>
+    <string name="settings_blank_height_title">重做区高度</string>
+    <string name="settings_blank_height_range">%1$d pt</string>
+    <string name="settings_fetch_models">获取模型列表</string>
+    <string name="settings_models_title">可用模型</string>
+    <string name="settings_models_pick_hint">点选后填入模型名称</string>
+    <string name="settings_test_reminder_done">已触发一次提醒检查</string>
+    <string name="settings_test_connection">测试连接</string>
+    <string name="settings_test_mineru">测试 MinerU</string>
+    <string name="settings_test_llm">测试大模型</string>
+    <string name="settings_testing">测试中…</string>
+    <string name="settings_data_manage">数据管理</string>
+    <string name="settings_storage_title">本机占用</string>
+    <string name="settings_storage_loading">统计中…</string>
+    <string name="settings_storage_detail">%1$d 道题 · 图片 %2$s · 数据库 %3$s · 合计 %4$s</string>
+    <string name="settings_export_backup">导出备份</string>
+    <string name="settings_restore_backup">从备份恢复</string>
+    <string name="settings_clear_trash">清空回收站</string>
+    <string name="settings_restore_confirm_title">恢复备份</string>
+    <string name="settings_restore_confirm_body">恢复会覆盖当前全部错题与图片，且无法撤销。确认继续？</string>
+    <string name="settings_restore_done">恢复完成，已重新载入 %1$d 题</string>
+    <string name="settings_restore_failed">备份文件无效：%1$s</string>
+    <string name="settings_backup_exported">备份已导出</string>
+    <string name="settings_backup_failed">导出失败：%1$s</string>
+    <string name="settings_keys_saved">密钥已保存</string>
+
+    <!-- 网络错误 -->
+    <string name="error_no_key">请先到设置填写 API Key</string>
+    <string name="error_no_key_missing_llm">大模型接入配置（Base URL / Key / 模型）</string>
+    <string name="edit_note_hint">记下思路、易错点、老师补充…</string>
+    <string name="detail_mastered_switch">掌握</string>
+    <string name="detail_re_recognize">重新识别</string>
+    <string name="detail_re_recognize_confirm">重新识别会用 AI 重新整理这道题的原图，识别完成后**覆盖**当前的题干、选项、答案、解析与附图。\n\n掌握状态、复习时间和你的备注会保留。确定要覆盖吗？</string>
+    <string name="detail_re_recognize_confirm_action">覆盖并重新识别</string>
+    <string name="detail_re_recognize_need_key">请先到设置填写 API Key</string>
+    <string name="detail_re_recognize_no_file">原图已不存在，无法重新识别</string>
+    <string name="detail_re_recognize_failed">提交失败，请重试</string>
+    <string name="edit_question_title">题目标题</string>
+    <string name="edit_title_hint">列表里显示的短标题，可留空</string>
+    <string name="edit_figures">题目附图</string>
+    <string name="edit_figures_empty">没有附图，打印时会用上面的原图</string>
+    <string name="edit_figure_remove">移除附图</string>
+    <string name="edit_recrop">重新裁剪</string>
+    <string name="edit_subject_manual">识别不出来？手动填学科</string>
+    <string name="edit_subject_manual_hint">例如：通信原理</string>
+    <string name="detail_note_saved">备注已保存</string>
+    <string name="probe_math_title">公式渲染探针</string>
+    <string name="probe_math_display_label">独立行公式：</string>
+    <string name="error_no_key_action">去设置填写</string>
+    <string name="error_auth">API Key 无效，请检查设置</string>
+    <string name="error_rate_limit">服务端繁忙或额度受限，稍后重试</string>
+    <string name="error_timeout">网络超时，请重试</string>
+    <string name="error_network">网络不通，请检查连接后重试</string>
+    <string name="error_server">服务端返回错误</string>
+    <string name="error_cancelled">已取消</string>
+    <string name="error_bad_response">服务端返回内容无法解析</string>
+    <string name="error_connection_ok">连接成功</string>
+    <string name="error_key_invalid">Key 无效</string>
+
+    <!-- PDF 导入 -->
+    <string name="pdf_import_title">导入 PDF</string>
+    <string name="pdf_import_pick">选择 PDF 文件</string>
+    <string name="pdf_import_parsing">正在解析 PDF…</string>
+    <string name="pdf_import_text_mode">文本 PDF，直接提取文字（%1$d 页）</string>
+    <string name="pdf_import_image_mode">图片 PDF，逐页送 MinerU 识别（%1$d 页）</string>
+    <string name="pdf_import_range">页码范围</string>
+    <string name="pdf_import_range_hint">例如 1-5,8,11-12</string>
+    <string name="pdf_import_start">开始导入</string>
+    <string name="pdf_import_invalid_range">页码范围无效</string>
+    <string name="pdf_import_failed">PDF 解析失败：%1$s</string>
+    <string name="pdf_import_too_large">PDF 超过 %1$d 页，请分段导入</string>
+    <string name="pdf_import_preparing">正在准备导入任务…</string>
+    <string name="pdf_import_pages_selected">已选 %1$d 页</string>
+
+    <!-- 相册批量 -->
+    <string name="gallery_pick_limit">最多一次选择 %1$d 张</string>
+    <string name="gallery_copying">正在读取图片…</string>
+    <string name="gallery_copy_failed">图片读取失败：%1$s</string>
+
+    <!-- 复习 -->
+    <string name="review_notification_title">今天有 %1$d 道错题待复习</string>
+    <string name="review_notification_channel">复习提醒</string>
+    <string name="review_filter_due">待复习</string>
+
+    <!-- ========== AI 对话（v0.0.6） ========== -->
+    <string name="chat_title_question">AI 讲解</string>
+    <string name="chat_title_free">AI 对话</string>
+    <string name="chat_list_title">对话记录</string>
+    <string name="chat_list_empty">还没有对话</string>
+    <string name="chat_list_empty_hint">从题目详情页或首页右上角进入，就能开始提问</string>
+    <string name="chat_list_new">新对话</string>
+    <string name="chat_list_clear_all">清空全部</string>
+    <string name="chat_list_clear_confirm_title">清空全部对话？</string>
+    <string name="chat_list_clear_confirm_body">所有对话记录都会被删除，此操作不可恢复。</string>
+    <string name="chat_list_item_messages">%1$d 条消息</string>
+    <string name="chat_list_bound_question">题目：%1$s</string>
+    <string name="chat_list_free_tag">自由对话</string>
+    <string name="chat_time_today">今天</string>
+    <string name="chat_time_yesterday">昨天</string>
+    <string name="chat_time_before_yesterday">前天</string>
+    <string name="chat_time_within_week">%1$d 天前</string>
+
+    <string name="chat_input_hint">问点什么…（可附图或文档）</string>
+    <string name="chat_send">发送</string>
+    <string name="chat_stop">停止</string>
+    <string name="chat_retry">重试</string>
+    <string name="chat_copy">复制</string>
+    <string name="chat_copied">已复制</string>
+    <string name="chat_delete_message">删除这条</string>
+    <string name="chat_delete_confirm_title">删除这条消息？</string>
+    <string name="chat_delete_confirm_body">删除后不可恢复。</string>
+    <string name="chat_rename">重命名</string>
+    <string name="chat_rename_title">重命名对话</string>
+    <string name="chat_rename_hint">对话名称</string>
+    <string name="chat_rename_save">保存</string>
+    <string name="chat_cancel">取消</string>
+    <string name="chat_confirm">确定</string>
+    <string name="chat_untitled">未命名对话</string>
+
+    <string name="chat_omitted_notice">已省略 %1$d 条早期对话</string>
+    <string name="chat_truncated_title">回答超长被截断</string>
+    <string name="chat_truncated_body">回答达到了长度上限。可以让它「简短一点」，或换一个上下文更长的模型。</string>
+    <string name="chat_truncated_badge">已截断</string>
+    <string name="chat_dismiss">知道了</string>
+    <string name="chat_stopped_badge">已停止</string>
+    <string name="chat_failed_badge">发送失败</string>
+    <string name="chat_jump_to_bottom">回到底部</string>
+
+    <string name="chat_role_user">我</string>
+    <string name="chat_role_assistant">AI</string>
+    <string name="chat_context_header">题目上下文</string>
+    <string name="chat_context_not_injected">未能读取这道题的信息，将只按你的提问回答。</string>
+
+    <string name="chat_attach">添加附件</string>
+    <string name="chat_attach_image">图片</string>
+    <string name="chat_attach_file">文档</string>
+    <string name="chat_attach_gallery">从相册选择</string>
+    <string name="chat_attach_camera">拍照</string>
+    <string name="chat_attach_files">浏览文件</string>
+    <string name="chat_attachment_preparing">准备中…</string>
+    <string name="chat_attachment_ready">就绪</string>
+    <string name="chat_attachment_failed">处理失败</string>
+    <string name="chat_attachment_remove">移除附件</string>
+    <string name="chat_attachment_extracted">已提取 %1$d 字</string>
+    <string name="chat_attachment_size">%1$s</string>
+    <string name="chat_attachment_unsupported">不支持这种文件：%1$s</string>
+    <string name="chat_attachment_too_large">文件太大：%1$s（上限 %2$s）</string>
+    <string name="chat_attachment_read_failed">读取文件失败：%1$s</string>
+    <string name="chat_attachment_empty_text">没有从 %1$s 里读到任何文字</string>
+
+    <string name="chat_error_generic">对话失败</string>
+    <string name="chat_error_needs_key">还没配置 API Key</string>
+    <string name="chat_error_needs_key_body">配置后才能与 AI 对话。Key 只保存在本机，不会上传到任何地方。</string>
+    <string name="chat_loading">正在打开对话…</string>
+
+    <!-- ========== 导出格式（v0.0.8） ========== -->
+    <string name="export_format_html">HTML（单文件·可直接用浏览器打开）</string>
+    <string name="export_generating">正在生成…</string>
+    <string name="export_done">已导出：%1$s</string>
+    <string name="export_open">打开</string>
+    <string name="export_share">分享</string>
+    <string name="export_failed">导出失败：%1$s</string>
+    <string name="export_skipped">有 %1$d 道题排版失败已跳过</string>
+    <string name="export_page_count">共 %1$d 页</string>
+
+    <!-- ========== 思考过程（v0.0.9） ========== -->
+    <string name="chat_thinking_header">思考过程</string>
+    <string name="chat_thinking_expand">展开思考过程</string>
+    <string name="chat_thinking_collapse">收起思考过程</string>
+    <string name="chat_thinking_ongoing">正在思考…</string>
+    <string name="chat_thinking_chars">%1$d 字</string>
+    <string name="chat_empty_reply">模型未返回内容。可能是拒答，也可能是模型名填错了。</string>
+    <string name="chat_math_failed_title">有公式没渲染出来</string>
+    <string name="chat_math_failed_body">下面这几个公式的 LaTeX 源文有问题，已显示为小字体。可以在编辑页点「检查」一键修复。</string>
+    <string name="chat_math_failed_count">%1$d 处公式未渲染</string>
+
+    <string name="export_format_html_short">HTML</string>
+
+    <string name="chat_image_unreadable">（图片无法显示）</string>
+    <string name="chat_image_content_description">发送的图片</string>
+
+    <string name="print_pdf_hint">需要 PDF？打开生成的 HTML 文件，用浏览器的打印功能（菜单里选「打印」→「另存为 PDF」）即可，页边距与缩放都能调。</string>
+</resources>

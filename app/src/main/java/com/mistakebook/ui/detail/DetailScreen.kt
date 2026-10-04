@@ -1,0 +1,406 @@
+package com.mistakebook.ui.detail
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Switch
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import com.mistakebook.R
+import com.mistakebook.data.local.figurePaths
+import com.mistakebook.di.AppContainer
+import com.mistakebook.ui.common.DifficultyPicker
+import com.mistakebook.domain.ReviewResult
+import com.mistakebook.ui.common.DifficultyStars
+import com.mistakebook.ui.common.EmptyState
+import com.mistakebook.ui.common.ErrorReasonChip
+import com.mistakebook.ui.common.Format
+import com.mistakebook.ui.common.FullScreenImageDialog
+import com.mistakebook.ui.common.InfoRow
+import com.mistakebook.ui.common.NotebookPicker
+import com.mistakebook.ui.common.QuestionThumb
+ import com.mistakebook.ui.common.NoteEditor
+import com.mistakebook.ui.common.RichText
+ import com.mistakebook.ui.common.SectionLabel
+import com.mistakebook.ui.common.SubjectDot
+import com.mistakebook.ui.common.containerViewModel
+import com.mistakebook.ui.theme.Danger
+import com.mistakebook.ui.theme.SuccessGreen
+
+/**
+ * 详情页（PRD 7.6）：展示、编辑、删除、标记已掌握、复习打卡与历史时间线。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DetailScreen(
+    container: AppContainer,
+    questionId: Long,
+    onBack: () -> Unit,
+    onEdit: (Long) -> Unit,
+    onRecrop: (String) -> Unit = {},
+    onReRecognize: (Long) -> Unit = {},
+    onOpenChat: (Long) -> Unit = {}
+) {
+    val viewModel: DetailViewModel =
+        containerViewModel(container) { DetailViewModel(it, questionId) }
+    val state by viewModel.uiState.collectAsState()
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showFullImage by remember { mutableStateOf(false) }
+    // 点开的具体图片：null 表示原始照片，非空为某张附图
+    var fullImagePath by remember { mutableStateOf<String?>(null) }
+    // 重新识别会覆盖当前题目，必须让用户明确确认
+    var showReRecognizeDialog by remember { mutableStateOf(false) }
+    var reRecognizeError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(state.question == null) {
+        if (!state.loading && state.question == null) onBack()
+    }
+
+    val question = state.question
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.detail_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back)
+                        )
+                    }
+                },
+                actions = {
+                    if (question != null) {
+                        // AI 对话入口：放在最前面，因为它是对这道题最常用的后续动作
+                        IconButton(onClick = { onOpenChat(question.id) }) {
+                            Icon(
+                                Icons.Default.AutoAwesome,
+                                contentDescription = stringResource(R.string.chat_title_question)
+                            )
+                        }
+                        IconButton(onClick = { showReRecognizeDialog = true }) {
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = stringResource(R.string.detail_re_recognize)
+                            )
+                        }
+                        IconButton(onClick = { onEdit(question.id) }) {
+                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.action_edit))
+                        }
+                        IconButton(onClick = { showDeleteDialog = true }) {
+                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.action_delete))
+                        }
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+        ) {
+            val hasImage = question != null && (
+                question.imagePath.endsWith(".jpg", true) ||
+                    question.imagePath.endsWith(".jpeg", true) ||
+                    question.imagePath.endsWith(".png", true)
+            )
+            when {
+                state.loading || question == null -> EmptyState(
+                    title = stringResource(R.string.detail_title),
+                    subtitle = ""
+                )
+
+                else -> Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
+                ) {
+                    if (hasImage) {
+                        QuestionThumb(
+                            imagePath = question.imagePath,
+                            contentDescription = stringResource(R.string.edit_original_image),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(220.dp),
+                            onClick = { showFullImage = true; fullImagePath = null }
+                        )
+                        Spacer(Modifier.height(12.dp))
+                    }
+                    // 题目附图：MinerU 从原图切出的图形部分。与上面的整张原图明显区分，
+                    // 打印时用的也是这一张。
+                    if (question.figurePaths.isNotEmpty()) {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(question.figurePaths) { ref ->
+                                QuestionThumb(
+                                    imagePath = ref,
+                                    contentDescription = stringResource(R.string.edit_figures),
+                                    modifier = Modifier
+                                        .size(120.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                    onClick = { showFullImage = true; fullImagePath = ref }
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(12.dp))
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        SubjectDot(subjectName = state.subjectName)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = state.subjectName ?: stringResource(R.string.print_unclassified),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        ErrorReasonChip(reason = question.errorReason)
+                        Spacer(Modifier.weight(1f))
+                        // 难度直接点星改。大模型给的只是初值，用户有最终判断权。
+                        DifficultyPicker(
+                            difficulty = question.difficulty,
+                            onChange = viewModel::setDifficulty
+                        )
+                    }
+
+                    // 错题本：详情页直接改归属，不用跳去编辑页
+                    Spacer(Modifier.height(10.dp))
+                    NotebookPicker(
+                        notebooks = state.notebooks,
+                        selectedId = question.notebookId,
+                        onSelect = viewModel::setNotebook,
+                        label = stringResource(R.string.detail_notebook)
+                    )
+                    if (state.dueToday) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.home_due_badge),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Danger
+                        )
+                    }
+                    if (question.status == com.mistakebook.domain.MasteryStatus.MASTERED) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.detail_mastered_hint),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = SuccessGreen
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    RichText(
+                        text = question.stem,
+                        mathRenderer = container.mathRenderer,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+
+                    if (state.options.isNotEmpty()) {
+                        Spacer(Modifier.height(12.dp))
+                        state.options.forEach { option ->
+                            // 选项也要走 RichText：里面常含 $...$，用裸 Text 会直接显示 LaTeX 源码
+                            RichText(
+                                text = "${option.label}. ${option.text}",
+                                mathRenderer = container.mathRenderer,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    if (question.answer.isNotBlank()) {
+                        Spacer(Modifier.height(12.dp))
+                        SectionLabel(stringResource(R.string.edit_answer))
+                        RichText(
+                            text = question.answer,
+                            mathRenderer = container.mathRenderer,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    if (question.analysis.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        SectionLabel(stringResource(R.string.edit_analysis))
+                        RichText(
+                            text = question.analysis,
+                            mathRenderer = container.mathRenderer,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    if (state.knowledgePoints.isNotEmpty()) {
+                        Spacer(Modifier.height(12.dp))
+                        InfoRow(
+                            label = stringResource(R.string.detail_knowledge_points),
+                            value = state.knowledgePoints.joinToString("、")
+                        )
+                    }
+                    // 备注：看题时就能直接改，不用进编辑页
+                    Spacer(Modifier.height(12.dp))
+                    SectionLabel(stringResource(R.string.detail_note))
+                    NoteEditor(
+                        note = viewModel.currentNote(),
+                        mathRenderer = container.mathRenderer,
+                        onChange = viewModel::setNote,
+                        onCommit = viewModel::saveNote
+                    )
+
+                    Spacer(Modifier.height(20.dp))
+                    MasteredSection(
+                        mastered = state.isMastered,
+                        onChange = viewModel::setMastered
+                    )
+
+                    Spacer(Modifier.height(24.dp))
+                    OutlinedButton(onClick = { onEdit(question.id) }, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.action_edit))
+                    }
+                }
+            }
+        }
+    }
+
+    if (showFullImage && question != null) {
+        FullScreenImageDialog(
+            imagePath = fullImagePath ?: question.imagePath,
+            contentDescription = stringResource(R.string.edit_original_image),
+            onDismiss = {
+                showFullImage = false
+                fullImagePath = null
+            }
+        )
+    }
+
+    if (showReRecognizeDialog) {
+        AlertDialog(
+            onDismissRequest = { showReRecognizeDialog = false },
+            title = { Text(stringResource(R.string.detail_re_recognize)) },
+            text = {
+                Text(
+                    if (reRecognizeError != null) reRecognizeError.orEmpty()
+                    else stringResource(R.string.detail_re_recognize_confirm)
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showReRecognizeDialog = false
+                        reRecognizeError = null
+                        viewModel.reRecognize { result ->
+                            when (result) {
+                                is ReRecognizeResult.Submitted -> {
+                                    reRecognizeError = null
+                                    onReRecognize(result.taskId)
+                                }
+
+                                is ReRecognizeResult.Failed -> {
+                                    // 留在详情页并把原因显示出来，让用户知道为什么没动
+                                    reRecognizeError = result.reason
+                                }
+                            }
+                        }
+                    }
+                ) { Text(stringResource(R.string.detail_re_recognize_confirm_action)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReRecognizeDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(stringResource(R.string.detail_delete)) },
+            text = { Text(stringResource(R.string.detail_delete_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    viewModel.delete()
+                    onBack()
+                }) { Text(stringResource(R.string.action_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+}
+
+/**
+ * 「是否会了」开关。
+ *
+ * 原来是「会 / 模糊 / 不会」三按钮 + 艾宾浩斯轮次 + 打卡历史时间线，标签太多反而鸡肋。
+ * 现在只留一个开关：打开=会了（不再进待复习队列与每日提醒），关闭=不会（次日重新提醒）。
+ */
+@Composable
+private fun MasteredSection(
+    mastered: Boolean,
+    onChange: (Boolean) -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.detail_mastered_switch),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f)
+            )
+            Switch(checked = mastered, onCheckedChange = onChange)
+        }
+    }
+}

@@ -1,0 +1,105 @@
+# ============================================================
+# 密钥与签名 —— 绝不能进仓库
+# ============================================================
+# local.properties 里放真实 API Key 与本机 SDK 路径。
+# 仓库里只保留 local.properties.template（仅占位符）。
+local.properties
+local.properties.local
+
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# 兜底：任何形态的密钥文件
+*.pem
+*.p12
+*.pfx
+secrets.properties
+secrets.xml
+
+# ============================================================
+# Android / Gradle 构建产物
+# ============================================================
+build/
+*/build/
+.gradle/
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+
+*.apk
+*.aab
+*.apk.idsig
+*.dex
+*.class
+
+# ProGuard/R8 映射：可用于还原混淆后的实现，不宜公开
+mapping.txt
+seeds.txt
+usage.txt
+obfuscation.txt
+
+# ============================================================
+# IDE
+# ============================================================
+*.iml
+.idea/
+*.ipr
+*.iws
+.vscode/
+!.vscode/extensions.json
+*.code-workspace
+
+# Android Studio 的本地配置与自动保存文件
+*.hprof
+captures/
+.navigation/
+misc.xml
+
+# ============================================================
+# 系统文件
+# ============================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ============================================================
+# 日志与临时文件
+# ============================================================
+*.log
+*.tmp
+*.bak
+*.orig
+*.swp
+*~
+*.rej
+
+# 测试与覆盖率报告
+/test-results/
+/reports/
+/coverage/
+*.lcov
+hs_err_pid*
+replay_pid*
+
+# ============================================================
+# 本地草稿
+# ============================================================
+# 需求文档的私人草稿：不要误提交
+/notes/
+/drafts/
+*.private.md
+
+# ============================================================
+# ��������
+# ============================================================
+.pi/
+

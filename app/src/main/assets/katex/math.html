@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="stylesheet" href="katex.min.css"/>
+<script src="katex.min.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  /*
+   * 绝对定位到页面原点：Android 侧按返回的宽高开一张位图，再 view.draw(canvas)
+   * 把 WebView 左上角那一块抠出来。必须让 #out 贴住 (0,0)，否则量到的尺寸和位图对不上。
+   */
+  #out {
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: 32px;
+    color: #1B1F26;
+    white-space: nowrap;
+    /*
+     * 右边/下边留一点余量：getBoundingClientRect() 返回的是排版盒，
+     * 而斜体修正、分式横线等的实际墨水会略微溢出盒外，不留边就会把最右侧切掉一点。
+     * 只加右/下 padding，内容仍然贴住 (0,0)，Android 侧按 (0,0) 起抠图才对得���。
+     */
+    padding-right: 10px;
+    padding-bottom: 6px;
+  }
+
+  /*
+   * 批量长卷：每行一个公式，行间留白是刻意加的——
+   * 相邻两行的墨水溢出（分式下标、根号的钩）不能碰到下一行。
+   * 切图时按 rect 取，行间白边不会混进位图。
+   */
+  #sheet {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: none;
+    font-size: 32px;
+    color: #1B1F26;
+  }
+  #sheet .cell {
+    padding: 12px 10px 14px 0;
+    /* 不换行：行盒高度完全由本行公式决定，量到的 rect 就是它的实际墨水范围 */
+    white-space: nowrap;
+  }
+  #sheet .body {
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+<div id="out"></div>
+<div id="sheet"></div>
+<script>
+  var BASE_PX = 32;
+
+  /**
+   * KaTeX 在 throwOnError:false 时**不抛异常**，而是把无法解析的部分渲染成
+   * **红色**的源码（外层 .katex-error，title 里是错误信息）。
+   * 用户看到的「一坨红色的字」不是排版效果，是失败现场。
+   *
+   * 主动检出并回传失败标记，Android 侧就能回退成显示源码，而不是给用户看红色垃圾。
+   */
+  function hasRenderError(node) {
+    if (!node) return false;
+    if (node.classList && node.classList.contains('katex-error')) return true;
+    for (var i = 0; i < node.childNodes.length; i++) {
+      var child = node.childNodes[i];
+      if (child.nodeType === 1 && hasRenderError(child)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * 渲染前先做一次「损坏自检」。
+   *
+   * KaTeX 不会因为 `x<TAB>o0` 报错——那是个完全合法的数学式，
+   * 只是排出来是错的。所以光靠 .katex-error 检测**抓不到 JSON 转义吃掉的命令**，
+   * 必须单独扫一遍控制字符。命中就说明公式已被破坏，直接判失败。
+   */
+  function looksCorrupted(latex) {
+    // LaTeX 数学里不可能出现这些裸控制字符；出现即说明反斜杠被 JSON 转义吃掉了
+    return /[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(latex) || /\t[a-zA-Z]/.test(latex);
+  }
+
+  /**
+   * 输出 **MathML**（不是位图）。
+   *
+   * 用于 HTML 导出：浏览器自带 MathML 渲染能力（Chrome 109+ / Safari / Firefox 均支持），
+   * 所以导出的 HTML 可以不引任何 JS、不联网、且公式是**可选中可搜索**的真文字。
+   * 这比内嵌位图好得多，也比引 KaTeX JS 好得多（那要 300KB+）。
+   *
+   * KaTeX 的 `output: 'mathml'` 与 HTML 输出的区别：HTML 输出会生成一大堆 span 体标记，
+   * 原文几乎完全丢失；MathML 输出保留语义标记，所以选它。
+   */
+  function toMathML(latex, displayMode) {
+    try {
+      var ml = katex.renderToString(latex, {
+        displayMode: !!displayMode,
+        throwOnError: false,
+        strict: false,
+        output: 'mathml'
+      });
+      return JSON.stringify({ ml: ml });
+    } catch (e) {
+      // 返回空字符串而不是抛异常：Android 侧会回退到渲染位图，
+      // 而位图路径永远可用。抛异常会让整份文档导出失败。
+      return JSON.stringify({ ml: '' });
+    }
+  }
+
+  function render(latex, displayMode, maxDevicePx) {
+    var out = document.getElementById('out');
+    // 单条路径只抠 #out，所以必须先把 #sheet 藏起来：
+    // 两者都是 position:absolute 贴在 (0,0)，不藏会盖在 #out 上，
+    // 抠出来的是上一次批量渲染的残留而不是本次公式。
+    // （原来是在 renderBatch 结尾设 display:none，但那等于让批量路径抠到空白，
+    //   正确做法是在**每条路径的入口**各管各的。）
+    var sheet = document.getElementById('sheet');
+    sheet.style.display = 'none';
+    // getBoundingClientRect() 是 CSS 像素，而 Android 的 view.draw 画的是设备像素，
+    // 高分屏上差一个 devicePixelRatio。必须乘 dpr 再返回，否则抠出来的是公式的一小块。
+    var dpr = window.devicePixelRatio || 1;
+    // 同时受两个上限约束：WebView 视口宽度、以及 Android 侧位图边长上限。
+    // 必须在**渲染阶段**把字号缩到位；等抓到图再裁会把公式右边切掉一半。
+    var limit = Math.min((window.innerWidth || 700), (maxDevicePx || 2048) / dpr);
+    var maxW = Math.max(120, limit - 8);
+
+    out.style.fontSize = BASE_PX + 'px';
+    out.innerHTML = '';
+    try {
+      katex.render(latex, out, {
+        displayMode: displayMode,
+        throwOnError: false,
+        strict: false,
+        output: 'html'
+      });
+    } catch (e) {
+      out.textContent = latex;
+    }
+
+    var rect = out.getBoundingClientRect();
+    // 超宽公式整体缩字号，保证完整落在上限内
+    if (rect.width > maxW) {
+      out.style.fontSize = Math.max(8, Math.floor(BASE_PX * maxW / rect.width)) + 'px';
+      rect = out.getBoundingClientRect();
+    }
+
+    // fs 是本张位图实际用的字号（设备像素）。Android 侧按「目标字号 / fs」等比缩放，
+    // 这样公式之间的相对大小才会一致；只按包围盒高度缩放会把单个字母撑得巨大。
+    // err: 1 = 已被 JSON 转义破坏 / 2 = KaTeX 解析失败（红色错误）。
+    // Android 侧据此回退成显示源码，而不是给用户看红色的乱码。
+    var err = looksCorrupted(latex) ? 1 : (hasRenderError(out) ? 2 : 0);
+    return JSON.stringify({
+      w: Math.round(rect.width * dpr),
+      h: Math.round(rect.height * dpr),
+      fs: Math.round(parseFloat(out.style.fontSize) * dpr),
+      err: err
+    });
+  }
+
+  /**
+   * 批量渲染：把多个公式**纵向排进同一条长卷**，一次光栅化后由 Android 侧按偏移切图。
+   *
+   * 单条路径每渲染一个公式要等 2 帧、draw 两次、开一张全尺寸位图。
+   * 10 个公式就是 20 次 Choreographer 帧等待 + 10 次全量 draw —— 这就是「打开详情页很卡」的来源。
+   * 批量把帧等待从 O(N) 降到 O(1)，是唯一量级上的改进。
+   *
+   * 每个公式包在自己的容器里，容器是 inline-block 且不换行，
+   * 因此行盒高度由每个公式自己的高度决定，互不干扰。
+   */
+  function renderBatch(items, maxDevicePx) {
+    var dpr = window.devicePixelRatio || 1;
+    var limit = Math.min((window.innerWidth || 700), (maxDevicePx || 2048) / dpr);
+    var maxW = Math.max(120, limit - 8);
+
+    var sheet = document.getElementById('sheet');
+    sheet.innerHTML = '';
+    sheet.style.display = 'block';
+
+    // 排 + 量。偏移和尺寸都从 holder 自己的 rect 取，不受相邻行影响。
+    var out = [];
+    for (var i = 0; i < items.length; i++) {
+      var cell = document.createElement('div');
+      cell.className = 'cell';
+      var holder = document.createElement('div');
+      holder.className = 'body';
+      cell.appendChild(holder);
+      sheet.appendChild(cell);
+
+      var fontSize = BASE_PX;
+      try {
+        katex.render(items[i].t, holder, {
+          displayMode: !!items[i].d,
+          throwOnError: false,
+          strict: false,
+          output: 'html'
+        });
+      } catch (e) {
+        holder.textContent = items[i].t;
+      }
+
+      // 超宽公式在**渲染阶段**缩字号，保证完整落在上限内。
+      // 事后裁剪会把公式右边切掉一半。
+      var rect = holder.getBoundingClientRect();
+      if (rect.width > maxW) {
+        fontSize = Math.max(8, Math.floor(BASE_PX * maxW / rect.width));
+        holder.style.fontSize = fontSize + 'px';
+        rect = holder.getBoundingClientRect();
+      }
+
+      out.push({
+        k: items[i].k,
+        x: Math.round(rect.left * dpr),
+        y: Math.round(rect.top * dpr),
+        w: Math.round(rect.width * dpr),
+        h: Math.round(rect.height * dpr),
+        fs: Math.round(fontSize * dpr),
+        // 与单条路径同一套判定；PDF 导出走的是批量路径，
+        // 漏了这里就会把红色错误原样印到纸上
+        err: looksCorrupted(items[i].t) ? 1 : (hasRenderError(holder) ? 2 : 0)
+      });
+    }
+
+    // Android 侧会按这个高度重新撑大视口再抠图，
+    // 所以这里返回的是**内容**高度，不是当前视口高度。
+    var h = 0;
+    for (var j = 0; j < out.length; j++) {
+      var bottom = out[j].y + out[j].h;
+      if (bottom > h) h = bottom;
+    }
+    // 多留一点行间距余量：最后一个公式的下伸部（分母、根号钩）会略微溢出 rect
+    var result = JSON.stringify({
+      w: Math.max(1, Math.ceil(limit * dpr)),
+      h: Math.max(1, Math.ceil(h) + Math.round(14 * dpr)),
+      items: out
+    });
+    // **不要在这里把 #sheet 设成 display:none。**
+    // Android 侧拿到返回值之后立刻 relayoutForBatch() + view.draw() 抠这张长卷，
+    // 而 display:none 的元素不生成盒子、什么都不画 —— 抠出来必然是空白，
+    // 再按各公式的偏移去切就全是空图（症状：公式不显示，回退成 LaTeX 源码）。
+    // 藏 #sheet 的职责交给单条 render()，它在入口处把 #sheet 藏起来，
+    // 避免它盖在 #out 上影响单条抠图。两条路径互斥，各自管各自的。
+    return result;
+  }
+</script>
+</body>
+</html>

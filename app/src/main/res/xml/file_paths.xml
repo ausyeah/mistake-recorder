@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- app-specific files：crops / questions / mineru 缓存 -->
+    <files-path
+        name="internal_files"
+        path="." />
+    <!-- 系统下载目录下生成并分享出去的 PDF 与备份 zip -->
+    <external-path
+        name="downloads"
+        path="Download/" />
+    <external-path
+        name="downloads_book"
+        path="Download/错题本/" />
+    <!-- 分享下载的 PDF 需要先用缓存落地再授权 -->
+    <cache-path
+        name="cache"
+        path="." />
+</paths>
