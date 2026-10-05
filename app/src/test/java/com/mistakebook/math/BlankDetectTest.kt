@@ -191,6 +191,25 @@ class BlankDetectTest {
         assertTrue(isBlankBySampling(0, 0) { _, _ -> 255 })
     }
 
+    @Test
+    fun `负尺寸按空白处理`() {
+        assertTrue("负宽度应按空白处理", isBlankBySampling(-10, 100) { _, _ -> 255 })
+        assertTrue("负高度应按空白处理", isBlankBySampling(100, -10) { _, _ -> 255 })
+        assertTrue("负宽度和高度应按空白处理", isBlankBySampling(-10, -10) { _, _ -> 255 })
+    }
+
+    @Test
+    fun `网格采样坐标边界精确判定`() {
+        // 测试在采样网格的起始点 (0,0) 处存在不透明像素
+        val originCanvas = Canvas(200, 200) { x, y -> x == 0 && y == 0 }
+        assertFalse("(0,0) 处有内容不应判为空白", check(originCanvas))
+
+        // 200x200 时 stepX = 200/48 = 4, stepY = 200/48 = 4
+        // 采样坐标包含 (0,0), (4,4), ...
+        val sampledPointCanvas = Canvas(200, 200) { x, y -> x == 4 && y == 4 }
+        assertFalse("采样点 (4,4) 处有内容不应判为空白", check(sampledPointCanvas))
+    }
+
     // ------------------------------------------------------------------
     // 四、采样必然带来的取舍，必须钉住
     // ------------------------------------------------------------------
