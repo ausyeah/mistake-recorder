@@ -165,20 +165,6 @@ android {
         }
     }
 
-    testOptions {
-        unitTests {
-            // JVM 单测里的 android.jar 是打桩的：不加这个开关，
-            // 连 `ContextWrapper(null)` 这种纯构造都会抛 RuntimeException("Stub!")。
-            // 打开后 android 方法返回默认值，测试才能自己覆写 getFilesDir/getCacheDir
-            // 这类方法构造出真实可用的目录（见 BackupManagerTest）。
-            //
-            // 代价：依赖 android 真实行为的单测会静默拿到默认值而不是报错。
-            // 所以凡是测 Android 语义的东西，要么显式注入依赖（像 isBlankBySampling 那样），
-            // 要么放到 androidTest 里用真机跑。
-            isReturnDefaultValues = true
-        }
-    }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
