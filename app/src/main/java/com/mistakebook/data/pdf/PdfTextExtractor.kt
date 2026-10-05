@@ -18,6 +18,14 @@ object PdfTextExtractor {
     private const val MAX_PAGES = 200
     private const val MAX_TOTAL_CHARS = 400_000
 
+    private val OBJECT_REF_REGEX = Regex("^(\\d+)\\s+\\d+\\s+R$")
+    private val OBJECT_DEF_REGEX = Regex("(\\d+)\\s+(\\d+)\\s+obj")
+    private val INDIRECT_REF_REGEX = Regex("(\\d+)\\s+\\d+\\s+R")
+    private val BEGIN_END_BFCHAR_REGEX = Regex("beginbfchar(.*?)endbfchar", RegexOption.DOT_MATCHES_ALL)
+    private val BFCHAR_ENTRY_REGEX = Regex("<([0-9A-Fa-f]+)>\\s*<([0-9A-Fa-f]+)>")
+    private val BEGIN_END_BFRANGE_REGEX = Regex("beginbfrange(.*?)endbfrange", RegexOption.DOT_MATCHES_ALL)
+    private val BFRANGE_ENTRY_REGEX = Regex("<([0-9A-Fa-f]+)>\\s*<([0-9A-Fa-f]+)>\\s*<([0-9A-Fa-f]+)>")
+
     class PdfObject(
         val number: Int,
         val dictionary: Map<String, String>,
@@ -30,7 +38,7 @@ object PdfTextExtractor {
         fun get(key: String): String? = dictionary[key]
 
         fun ref(key: String): Int? =
-            Regex("^(\\d+)\\s+\\d+\\s+R$").matchEntire(dictionary[key]?.trim().orEmpty())
+            OBJECT_REF_REGEX.matchEntire(dictionary[key]?.trim().orEmpty())
                 ?.groupValues?.get(1)?.toIntOrNull()
 
         fun dictValue(key: String): Map<String, String>? = dictionary[key]?.let { parseDict(it) }
@@ -62,7 +70,7 @@ object PdfTextExtractor {
     private fun parseObjects(bytes: ByteArray): Map<Int, PdfObject> {
         val text = String(bytes, Charsets.ISO_8859_1)
         val objects = mutableMapOf<Int, PdfObject>()
-        val regex = Regex("(\\d+)\\s+(\\d+)\\s+obj")
+        val regex = OBJECT_DEF_REGEX
         var searchIndex = 0
         while (true) {
             if (objects.size >= MAX_OBJECTS) break
@@ -213,7 +221,7 @@ object PdfTextExtractor {
         if (obj.typeName() == "/Page") return listOf(obj)
         val kids = mutableListOf<PdfObject>()
         obj.get("/Kids")?.let { kidsRaw ->
-            Regex("(\\d+)\\s+\\d+\\s+R").findAll(kidsRaw).forEach { match ->
+            INDIRECT_REF_REGEX.findAll(kidsRaw).forEach { match ->
                 kids += collectKids(objects, visited, match.groupValues[1].toInt())
             }
         }
@@ -280,7 +288,7 @@ object PdfTextExtractor {
     ): String {
         val streamBuilder = StringBuilder()
         page.get("/Contents")?.let { contentRefs ->
-            Regex("(\\d+)\\s+\\d+\\s+R").findAll(contentRefs).forEach { match ->
+            INDIRECT_REF_REGEX.findAll(contentRefs).forEach { match ->
                 val data = objects[match.groupValues[1].toInt()]?.data
                 if (data != null) streamBuilder.append(String(data, Charsets.ISO_8859_1)).append('\n')
             }
@@ -304,7 +312,7 @@ object PdfTextExtractor {
         val result = mutableMapOf<String, Int>()
         val fontsRaw = page.dictValue("/Resources")?.get("/Font") ?: return result
         parseDict(fontsRaw).forEach { (name, ref) ->
-            val number = Regex("(\\d+)\\s+\\d+\\s+R").find(ref)?.groupValues?.get(1)?.toIntOrNull()
+            val number = INDIRECT_REF_REGEX.find(ref)?.groupValues?.get(1)?.toIntOrNull()
                 ?: return@forEach
             result[name] = number
             val cmap = objects[number]?.ref("/ToUnicode")?.let { objects[it]?.data } ?: return@forEach
@@ -479,21 +487,18 @@ object PdfTextExtractor {
 
     private fun parseToUnicodeCmap(cmap: String): Map<Int, Char> {
         val result = mutableMapOf<Int, Char>()
-        Regex("beginbfchar(.*?)endbfchar", RegexOption.DOT_MATCHES_ALL)
-            .find(cmap)?.groupValues?.get(1)
+        BEGIN_END_BFCHAR_REGEX.find(cmap)?.groupValues?.get(1)
             ?.lines()
             ?.forEach { line ->
-                val match = Regex("<([0-9A-Fa-f]+)>\\s*<([0-9A-Fa-f]+)>").find(line) ?: return@forEach
+                val match = BFCHAR_ENTRY_REGEX.find(line) ?: return@forEach
                 val source = match.groupValues[1].toIntOrNull(16) ?: return@forEach
                 val target = decodeUtf16Hex(match.groupValues[2]) ?: return@forEach
                 result[source] = target
             }
-        Regex("beginbfrange(.*?)endbfrange", RegexOption.DOT_MATCHES_ALL)
-            .find(cmap)?.groupValues?.get(1)
+        BEGIN_END_BFRANGE_REGEX.find(cmap)?.groupValues?.get(1)
             ?.lines()
             ?.forEach { line ->
-                val match = Regex("<([0-9A-Fa-f]+)>\\s*<([0-9A-Fa-f]+)>\\s*<([0-9A-Fa-f]+)>")
-                    .find(line) ?: return@forEach
+                val match = BFRANGE_ENTRY_REGEX.find(line) ?: return@forEach
                 val low = match.groupValues[1].toIntOrNull(16) ?: return@forEach
                 val high = match.groupValues[2].toIntOrNull(16) ?: return@forEach
                 val start = match.groupValues[3].toIntOrNull(16) ?: return@forEach
