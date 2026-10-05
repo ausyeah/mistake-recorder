@@ -67,8 +67,6 @@ class BackupManager(
 
     private suspend fun doExport(name: String): String {
         val entries = collectEntries()
-        // if/else 当函数体要显式 return。写成表达式体
-        // （`= if (...) a else b`）也可以，但两个分支都得是 String 才推得出来。
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, name)
