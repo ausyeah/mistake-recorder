@@ -59,8 +59,6 @@
     <string name="home_filter_subject">学科</string>
     <string name="home_filter_mastery">掌握</string>
     <string name="home_search_hint">搜题干、标题、答案、解析</string>
-    <string name="settings_enhance_photos">照片增强</string>
-    <string name="settings_enhance_photos_desc">导入/拍照后自动转正并做灰度对比度增强，提升识别率</string>
     <string name="home_search_clear">清空搜索</string>
     <string name="print_item_index">#%1$d</string>
     <string name="print_unclassified">未分类</string>
@@ -85,6 +83,11 @@
     <string name="capture_permission_settings">打开系统设置</string>
     <string name="capture_failed">拍照失败，请重试</string>
     <string name="capture_gallery_permission">需要相册访问权限</string>
+    <string name="capture_ocr_title">照片增强</string>
+    <string name="capture_ocr_off">关闭</string>
+    <string name="capture_ocr_light">轻度</string>
+    <string name="capture_ocr_standard">标准</string>
+    <string name="capture_ocr_strong">强力</string>
 
     <!-- 裁剪 -->
     <string name="crop_rotate">旋转 90°</string>

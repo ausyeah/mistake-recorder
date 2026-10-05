@@ -165,8 +165,6 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setAttachImage(value: Boolean) = viewModelScope.launch { store.setAttachOriginalImage(value) }
 
-    fun setEnhancePhotos(value: Boolean) = viewModelScope.launch { store.setEnhancePhotos(value) }
-
     fun setPrintIncludeImage(value: Boolean) = viewModelScope.launch {
         store.setPrintIncludeImage(value)
     }

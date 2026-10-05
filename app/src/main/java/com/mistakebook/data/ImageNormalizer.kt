@@ -55,30 +55,18 @@ object ImageNormalizer {
     private const val DARK_SPAN = 0.45f
 
     /**
- * 阈值以上的斜率。取值 4 是权衡：
- * 太小则纸面推不到纯白（背景还发灰，OCR 多余噪声），
- * 太大则抗锯齿边缘被切成硬边、铅笔字的灰度层次丢失。
- *
- * 原实现这个值是 10~21 —— 过高。
- */
-    private const val UP_SLOPE = 4f
-
-    /** 暗部映射的最低输出。留 12 而不是 0，让最深的阴影仍不是纯黑。 */
-    private const val DARK_FLOOR = 12f
-
-    /**
      * 把 [source] 归一化后写入 [target]，返回是否成功。
      *
-     * @param enhance 是否做 OCR 对比度增强（设置页可关）。
+     * @param strength OCR 对比度增强档位（0=关闭 1=轻度 2=标准 3=强力）。
      */
-    fun normalize(source: File, target: File, enhance: Boolean): Boolean {
+    fun normalize(source: File, target: File, strength: Int): Boolean {
         if (!source.exists()) return false
         return runCatching {
             val orientation = readOrientation(source)
             val decoded = decodeBounded(source) ?: return false
             // 先把方向烘进像素，后面所有环节（裁剪、缩略图、打印、识别）都不再需要知道 EXIF
             val upright = applyOrientation(decoded, orientation)
-            val final = if (enhance) enhanceForOcr(upright) else upright
+            val final = enhanceForOcr(upright, strength)
             target.parentFile?.mkdirs()
             target.outputStream().use { out ->
                 final.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
@@ -177,7 +165,8 @@ object ImageNormalizer {
      * 阈值不是固定的 128，而是按整图直方图取 Otsu 值——
      * 偏灰的照片和偏亮的照片需要不同的分界，固定阈值会把浅铅笔字吃掉。
      */
-    fun enhanceForOcr(bitmap: Bitmap): Bitmap {
+    fun enhanceForOcr(bitmap: Bitmap, strength: Int): Bitmap {
+        if (strength <= 0) return bitmap
         val width = bitmap.width
         val height = bitmap.height
         if (width <= 0 || height <= 0) return bitmap
@@ -195,7 +184,7 @@ object ImageNormalizer {
             val minC = minOf(r, g, b)
             val saturation = if (maxC == 0) 0f else (maxC - minC).toFloat() / maxC
 
-            val target = steepen(luma(r, g, b), threshold)
+            val target = steepen(luma(r, g, b), threshold, strength)
             pixels[i] = if (saturation >= COLOR_SATURATION) {
                 // 彩色笔迹：按比例缩放 RGB，保住色相
                 val scale = if (maxC == 0) 0f else target / maxC.toFloat()
@@ -244,21 +233,34 @@ object ImageNormalizer {
      *
      * 参数上，[DARK_SPAN] 取阈值的 0.45 而不是 0.12：
      * 0.12 意味着阈值下 12 级灰度就归零，而 0.45 给了将近一半的暗部范围。
+     *
+     * 新增档位说明：
+     * - 轻度 (1): 斜率 1.6，暗部底线 48。适合本身光线好、只是想稍作灰度化的照片。
+     * - 标准 (2): 斜率 4.0，暗部底线 12。原版参数：压掉大部分纸张杂色，保留主要笔迹细节。
+     * - 强力 (3): 斜率 8.0，暗部底线 0。极端去底色，暗部直接归零（会丢失部分灰度层次），用于极暗图片或追求高反差。
      */
-    internal fun steepen(value: Int, threshold: Int): Int {
+    internal fun steepen(value: Int, threshold: Int, strength: Int): Int {
         val v = value.toFloat()
         val t = threshold.toFloat()
+
+        val upSlope: Float
+        val darkFloor: Float
+        when (strength) {
+            1 -> { upSlope = 1.6f; darkFloor = 48f }
+            3 -> { upSlope = 8f; darkFloor = 0f }
+            else -> { upSlope = 4f; darkFloor = 12f } // 标准档(2) 或非法值回退
+        }
 
         // 阈值以上：向 255 收敛。跨度 0.25 倍阈值 → 斜率 4 左右，
         // 但**不封顶**：封顶会让 240 停在 229，推不到白，纸面不够干净。
         // 跨度已经保证了斜率不会失控，不需要第二道保险。
         if (v >= t) {
-            val upSpan = ((255f - t) / UP_SLOPE).coerceAtLeast(1f)
+            val upSpan = ((255f - t) / upSlope).coerceAtLeast(1f)
             val scaled = (v - t) * (255f - MID) / upSpan + MID
             return scaled.toInt().coerceIn(0, 255)
         }
 
-        // 阈值以下：把整个 [0, threshold] 区间线性拉到 [DARK_FLOOR, MID]。
+        // 阈值以下：把整个 [0, threshold] 区间线性拉到 [darkFloor, MID]。
         //
         // 关键是区间上界就是 **threshold 本身**。
         // 中间试过 `v / (threshold * 0.45)`：那么输入 threshold*0.45 ~ threshold
@@ -268,7 +270,7 @@ object ImageNormalizer {
         // 线性拉到整个区间的好处：输入 0~threshold 的每一级灰度都分到独立的输出值，
         // 暗部既提亮了（不再是 0）又保住了层次。
         val span = t.coerceAtLeast(1f)
-        val scaled = (v / span) * (MID - DARK_FLOOR) + DARK_FLOOR
+        val scaled = (v / span) * (MID - darkFloor) + darkFloor
         return scaled.toInt().coerceIn(0, MID.toInt())
     }
 

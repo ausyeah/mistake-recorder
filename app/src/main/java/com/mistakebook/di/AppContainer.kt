@@ -167,11 +167,11 @@ class AppContainer(context: Context) {
     val imageImporter: ImageImporter by lazy {
         // 增强开关每次导入时读一次当前设置，改设置后无需重启即可生效。
         // snapshotNow() 是挂起函数，这里在 appScope 里起个协程取值。
-        ImageImporter(appContext, files) { enhancePhotosCache.get() }
+        ImageImporter(appContext, files) { ocrStrengthCache.get() }
     }
 
     /** 缓存的增强开关，供非挂起上下文（ImageImporter 的同步回调）读取。 */
-    private val enhancePhotosCache = java.util.concurrent.atomic.AtomicBoolean(true)
+    private val ocrStrengthCache = java.util.concurrent.atomic.AtomicInteger(2)
 
     val recognitionSubmitter: RecognitionSubmitter by lazy {
         RecognitionSubmitter(captureTaskRepository, recognitionEngine)
@@ -253,8 +253,8 @@ class AppContainer(context: Context) {
         appScope.launch { notebookRepository.seedDefault() }
         // 缓存增强开关，供 ImageImporter 的同步回调读取
         appScope.launch {
-            enhancePhotosCache.set(
-                runCatching { settingsStore.snapshotNow().enhancePhotos }.getOrDefault(true)
+            ocrStrengthCache.set(
+                runCatching { settingsStore.snapshotNow().ocrStrength }.getOrDefault(2)
             )
         }
     }

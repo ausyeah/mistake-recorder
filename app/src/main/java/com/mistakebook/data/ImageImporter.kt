@@ -17,7 +17,7 @@ import java.io.File
 class ImageImporter(
     private val context: Context,
     private val files: AppFiles,
-    private val enhance: () -> Boolean = { true }
+    private val ocrStrength: () -> Int = { 2 }
 ) {
 
     suspend fun importUris(uris: List<Uri>): List<File> = withContext(Dispatchers.IO) {
@@ -39,7 +39,7 @@ class ImageImporter(
             return null
         }
 
-        val ok = ImageNormalizer.normalize(staging, target, enhance())
+        val ok = ImageNormalizer.normalize(staging, target, ocrStrength())
         staging.delete()
         if (!ok) {
             // 归一化失败（极端损坏的图片）不该让整批导入作废，退回原始字节

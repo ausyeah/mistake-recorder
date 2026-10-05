@@ -705,12 +705,6 @@ internal fun MineruParamsSection(
             checked = state.snapshot.attachOriginalImage,
             onChange = viewModel::setAttachImage
         )
-        SwitchRow(
-            label = stringResource(R.string.settings_enhance_photos),
-            subtitle = stringResource(R.string.settings_enhance_photos_desc),
-            checked = state.snapshot.enhancePhotos,
-            onChange = viewModel::setEnhancePhotos
-        )
     }
 }
 
