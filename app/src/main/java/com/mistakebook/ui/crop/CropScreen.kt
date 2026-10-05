@@ -51,6 +51,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBarDefaults
+import kotlinx.coroutines.withContext
+
 import com.mistakebook.R
 import com.mistakebook.di.AppContainer
 import com.mistakebook.ui.common.ApiKeyRequiredDialog
