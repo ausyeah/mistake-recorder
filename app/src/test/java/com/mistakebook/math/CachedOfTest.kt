@@ -98,6 +98,37 @@ class CachedOfTest {
         assertEquals(listOf("c", "a", "b"), got.keys.toList())
     }
 
+    @Test
+    fun `重复 key 依赖 map 特性进行覆盖`() {
+        val m = mapOf("a" to FakeRendered("A1"))
+        val got = cachedOf({ m[it] }, listOf(req("a"), req("a")))
+        assertEquals(setOf("a"), got.keys)
+        assertEquals("A1", got["a"]?.tag)
+    }
+
+    @Test
+    fun `支持空字符串与特殊字符 key`() {
+        val m = mapOf("" to FakeRendered("EMPTY"), "a/b#c" to FakeRendered("SPECIAL"))
+        val got = cachedOf({ m[it] }, listOf(req(""), req("a/b#c")))
+        assertEquals(setOf("", "a/b#c"), got.keys)
+        assertEquals("EMPTY", got[""]?.tag)
+        assertEquals("SPECIAL", got["a/b#c"]?.tag)
+    }
+
+    @Test
+    fun `精确对每个 item 触发一次 cache 查询`() {
+        val calls = mutableListOf<String>()
+        val cacheFunc: (String) -> FakeRendered? = { key ->
+            calls.add(key)
+            if (key == "hit") FakeRendered("HIT") else null
+        }
+        val items = listOf(req("hit"), req("miss1"), req("miss2"))
+        val got = cachedOf(cacheFunc, items)
+
+        assertEquals(listOf("hit", "miss1", "miss2"), calls)
+        assertEquals(setOf("hit"), got.keys)
+    }
+
     // ------------------------------------------------------------------
     // 二、分批必须在缓存过滤之后
     // ------------------------------------------------------------------
