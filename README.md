@@ -23,115 +23,50 @@
 
 ### 配置与录入
 
-<p align="center"><img src="docs/screenshots/settings-api.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="MinerU 与大模型配置"></p>
-
-<p align="center"><b>① 配置</b>：MinerU API Key 与大模型接入（DeepSeek 等兼容服务），可保存多套随时切换</p>
-
-<p align="center"><img src="docs/screenshots/settings-options.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="其他设置选项"></p>
-
-<p align="center"><b>② 其他设置</b>：图片处理、打印默认项、复习提醒、备份与恢复</p>
-
-<p align="center"><img src="docs/screenshots/home.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="主页"></p>
-
-<p align="center"><b>③ 主页</b>：空状态引导，右下角进入拍照 / 相册 / PDF / 手动录入</p>
-
-<p align="center"><img src="docs/screenshots/crop-demo.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="框选题目与裁切"></p>
-
-<p align="center"><b>④ 裁切</b>：拖框选题目、框外压暗、涂鸦遮蔽排除页面噪声</p>
-
-<p align="center"><img src="docs/screenshots/upload-1.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="上传处理一"></p>
-
-<p align="center"><img src="docs/screenshots/upload-2.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="上传处理二"></p>
-
-<p align="center"><img src="docs/screenshots/upload-3.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="上传处理三"></p>
-
-<p align="center"><b>⑤ 上传处理过程</b>：上传 → MinerU 解析 → AI 整理，阶段来自数据库，失败可重试</p>
-
-<p align="center"><img src="docs/screenshots/edit-result-1.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="识别结果编辑一"></p>
-
-<p align="center"><img src="docs/screenshots/edit-result-2.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="识别结果与题目编辑"></p>
-
-<p align="center"><b>⑥ 识别结束产物与编辑页</b>：核对整理结果、补知识点 / 错因 / 难度，确认后入库</p>
-
-<p align="center"><img src="docs/screenshots/question-detail.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="题目详情"></p>
-
-<p align="center"><b>⑦ 题目详情</b>：题干 / 答案 / 解析对照，标记已掌握、点星改难度</p>
-
-<p align="center"><img src="docs/screenshots/home-questions.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="主页题目排布"></p>
-
-<p align="center"><b>⑧ 主页题目排布</b>：按学科 / 掌握状态筛选，搜索、左滑删除可撤销</p>
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/settings-api.jpg" width="320" alt="MinerU 与大模型配置"><br><sub><b>① 配置</b> · MinerU API Key 与大模型接入</sub></td>
+<td align="center"><img src="docs/screenshots/settings-options.jpg" width="320" alt="其他设置选项"><br><sub><b>② 其他设置</b> · 图片处理 / 打印默认项 / 复习提醒</sub></td>
+<td align="center"><img src="docs/screenshots/home.jpg" width="320" alt="主页"><br><sub><b>③ 主页</b> · 拍照 / 相册 / PDF / 手动录入</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/crop-demo.jpg" width="320" alt="框选题目与裁切"><br><sub><b>④ 裁切</b> · 拖框选题目、框外压暗、涂鸦遮蔽</sub></td>
+<td align="center"><img src="docs/screenshots/upload-1.jpg" width="320" alt="上传处理一"><br><sub><b>⑤ 上传处理</b> · 上传 → MinerU 解析 → AI 整理</sub></td>
+<td align="center"><img src="docs/screenshots/upload-2.jpg" width="320" alt="上传处理二"><br><sub><b>⑤ 上传处理</b> · 阶段来自数据库</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/upload-3.jpg" width="320" alt="上传处理三"><br><sub><b>⑤ 上传处理</b> · 失败可重试</sub></td>
+<td align="center"><img src="docs/screenshots/edit-result-1.jpg" width="320" alt="识别结果编辑一"><br><sub><b>⑥ 编辑页</b> · 核对整理结果</sub></td>
+<td align="center"><img src="docs/screenshots/edit-result-2.jpg" width="320" alt="识别结果与题目编辑"><br><sub><b>⑥ 编辑页</b> · 补知识点 / 错因 / 难度</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/question-detail.jpg" width="320" alt="题目详情"><br><sub><b>⑦ 题目详情</b> · 题干 / 答案 / 解析对照</sub></td>
+<td align="center"><img src="docs/screenshots/home-questions.jpg" width="320" alt="主页题目排布"><br><sub><b>⑧ 主页题目排布</b> · 筛选 / 搜索 / 撤销</sub></td>
+</tr>
+</table>
 
 ### AI 对话
 
-<p align="center"><img src="docs/screenshots/chat-conversation.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="AI 对话界面"></p>
-
-<p align="center"><b>⑨ 题目 AI 对话</b>：流式回复，可附图片 / PDF / TXT / Markdown / DOCX</p>
-
-<p align="center"><img src="docs/screenshots/chat-history.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="AI 对话记录"></p>
-
-<p align="center"><b>⑩ AI 对话记录</b>：每题一个固定会话 + 自由会话</p>
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/chat-conversation.jpg" width="320" alt="AI 对话界面"><br><sub><b>⑨ 题目 AI 对话</b> · 流式回复，可附文档</sub></td>
+<td align="center"><img src="docs/screenshots/chat-history.jpg" width="320" alt="AI 对话记录"><br><sub><b>⑩ 对话记录</b> · 每题固定会话 + 自由会话</sub></td>
+</tr>
+</table>
 
 ### 打印与 PDF
 
-<p align="center"><img src="docs/screenshots/print-options.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="打印错题选项"></p>
-
-<p align="center"><b>⑪ 打印选项</b>：勾选题目，可选含原图 / 显示答案解析 / 留白重做</p>
-
-<p align="center"><img src="docs/screenshots/browser-preview.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="浏览器打印预览"></p>
-
-<p align="center"><b>⑫ 浏览器预览</b>：生成自包含 HTML，浏览器打开即见排版效果</p>
-
-<p align="center"><img src="docs/screenshots/system-print-1.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="系统打印操作一"></p>
-
-<p align="center"><img src="docs/screenshots/system-print-2.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="系统打印操作二"></p>
-
-<p align="center"><b>⑬ 打印操作</b>：菜单 → 打印 → 页面边距 / 缩放可调 → 另存为 PDF</p>
-
-<p align="center"><img src="docs/screenshots/final-pdf.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="最终 PDF 呈现效果"></p>
-
-<p align="center"><b>⑭ 最终 PDF</b>：A4 排版，公式 / 表格 / 题号完整呈现</p>
-
----
-
-## 使用教程
-
-### 首次配置：两个密钥
-
-App 依赖两个**由使用者自行申请**的云 API，全部在「设置」页配置，只存本机：
-
-1. **MinerU API Key**：用于错题图片识别。在 MinerU 开放平台申请后填入。
-2. **大模型接入**：用于纠错整理与 AI 对话。填 **Base URL + API Key + 模型名**（可保存多套配置并切换，点「获取模型列表」可自动带出可选模型）。任何 OpenAI 兼容服务均可，例如 `https://api.deepseek.com` + `deepseek-chat`。
-
-> **没有 Key 也能用**：首页「手动录入题目」完全离线，不发起任何请求。
-
-### 日常使用流程
-
-1. **录入**：首页右下角「拍错题」→ 拍照 / 相册 / PDF / 手动录入四选一；
-2. **识别**：进度页展示 上传 → MinerU 解析 → AI 整理 三个阶段，失败可重试，或「跳过 AI 直接用原始文本」；
-3. **编辑**：核对整理结果，翻页查看多题，插图可剔除，确认后入库；
-4. **复习**：列表页筛选 / 搜索，左滑删除可撤销；详情页标记已掌握、点星改难度；每日待复习提醒；
-5. **打印**：右上角打印机图标 → 勾选题目 → 生成 HTML（浏览器打开 → 打印 → 另存为 PDF，可调页边距与缩放）；
-6. **问 AI**：详情页右上角进入该题对话（首问预填「请讲解这道题…」不自动发送），或首页右上角进入历史会话。
-
-### API 规格
-
-#### 一、MinerU 识别 API（v4）
-
-- **Base URL**：`https://mineru.net/api/v4/`
-- **认证**：请求头 `Authorization: Bearer <API Key>`（上传与下载走预签名 URL，**不带**认证头）
-- **必需参数**：`files`（文件名列表）、`model_version`、`language`；可选 `enable_formula`、`enable_table`
-- **响应信封**：`{ "code": 0, "msg": "", "data": {...} }`，`code == 0` 为成功，否则 `msg` 为错误说明
-
-四步流程：
-
-1. **申请上传地址**
-   `POST file-urls/batch`
-   ```json
-   { "files": [ { "name": "错题.jpg", "is_ocr": true } ],
-     "model_version": "v20240914", "language": "ch",
-     "enable_formula": true, "enable_table": true }
-   ```
-   → `data`: `{ "batch_id": "...", "file_urls": ["https://.../presigned-url"] }`
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/print-options.jpg" width="320" alt="打印错题选项"><br><sub><b>⑪ 打印选项</b> · 含原图 / 答案解析 / 留白重做</sub></td>
+<td align="center"><img src="docs/screenshots/browser-preview.jpg" width="320" alt="浏览器打印预览"><br><sub><b>⑫ 浏览器预览</b> · 自包含 HTML 排版</sub></td>
+<td align="center"><img src="docs/screenshots/system-print-1.jpg" width="320" alt="系统打印操作一"><br><sub><b>⑬ 打印操作</b> · 菜单 → 打印</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/system-print-2.jpg" width="320" alt="系统打印操作二"><br><sub><b>⑬ 打印操作</b> · 边距 / 缩放可调</sub></td>
+<td align="center"><img src="docs/screenshots/final-pdf.jpg" width="320" alt="最终 PDF 呈现效果"><br><sub><b>⑭ 最终 PDF</b> · A4 排版完整呈现</sub></td>
+</tr>
+</table>
 
 2. **上传文件**：`PUT <file_url>`，body 为文件原始字节（无需认证头）。
 
