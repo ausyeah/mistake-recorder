@@ -352,10 +352,13 @@ class MathRenderer(context: Context) {
         var minY = h
         var maxX = -1
         var maxY = -1
+        val pixels = IntArray(w * h)
+        bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
+        var idx = 0
         for (y in 0 until h) {
             for (x in 0 until w) {
                 total++
-                val a = bitmap.getPixel(x, y) ushr 24
+                val a = pixels[idx++] ushr 24
                 if (a > maxAlpha) maxAlpha = a
                 if (a == 255) opaque++
                 if (a > 0) {
