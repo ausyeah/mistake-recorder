@@ -102,7 +102,7 @@ class SettingsStore(context: Context) {
             printShowAnswer = prefs[KEY_PRINT_ANSWER] ?: false,
             printBlankRedo = prefs[KEY_PRINT_BLANK] ?: true,
             printBlankHeightPt = prefs[KEY_PRINT_BLANK_PT] ?: 100,
-            enhancePhotos = prefs[KEY_ENHANCE_PHOTOS] ?: true,
+            ocrStrength = prefs[KEY_OCR_STRENGTH] ?: legacyStrength(prefs),
             reviewReminderEnabled = prefs[KEY_REMINDER_ON] ?: true,
             reminderHour = prefs[KEY_REMINDER_HOUR] ?: 20,
             reminderMinute = prefs[KEY_REMINDER_MINUTE] ?: 0
@@ -231,7 +231,15 @@ class SettingsStore(context: Context) {
 
     suspend fun setPrintShowAnswer(value: Boolean) = editBoolean(KEY_PRINT_ANSWER, value)
 
-    suspend fun setEnhancePhotos(value: Boolean) = editBoolean(KEY_ENHANCE_PHOTOS, value)
+    suspend fun setOcrStrength(value: Int) = editInt(KEY_OCR_STRENGTH, value.coerceIn(0, 3))
+
+    /** 读旧的 KEY_ENHANCE_PHOTOS 作为迁移兼容，不写入。 */
+    private fun legacyStrength(prefs: Preferences): Int {
+        return when (prefs[KEY_ENHANCE_PHOTOS]) {
+            false -> 0
+            else -> 2 // true 或键不存在都回退到默认标准档
+        }
+    }
 
     // ===== 裁剪会话（临时编辑状态，存 DataStore 不进 Room）=====
 
@@ -319,6 +327,7 @@ class SettingsStore(context: Context) {
         val KEY_PRINT_IMAGE = booleanPreferencesKey("print_include_image")
         val KEY_PRINT_ANSWER = booleanPreferencesKey("print_show_answer")
         val KEY_ENHANCE_PHOTOS = booleanPreferencesKey("enhance_photos")
+        val KEY_OCR_STRENGTH = intPreferencesKey("ocr_strength")
         val KEY_PRINT_BLANK = booleanPreferencesKey("print_blank_redo")
         val KEY_PRINT_BLANK_PT = intPreferencesKey("print_blank_height_pt")
         val KEY_REMINDER_ON = booleanPreferencesKey("review_reminder_enabled")

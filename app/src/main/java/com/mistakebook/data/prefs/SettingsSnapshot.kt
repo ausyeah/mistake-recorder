@@ -15,8 +15,12 @@ data class SettingsSnapshot(
     val printShowAnswer: Boolean = false,
     val printBlankRedo: Boolean = true,
     val printBlankHeightPt: Int = 100,
-    /** 导入/拍照后做灰度化 + 自适应对比度增强，显著提升 MinerU 识别率。 */
-    val enhancePhotos: Boolean = true,
+    /**
+     * 拍照/导入时是否做 OCR 对比度增强。
+     * 0=关闭 1=轻度 2=标准(默认) 3=强力。
+     * 强度越高，纸张底色压得越白、字迹拉得越黑。
+     */
+    val ocrStrength: Int = 2,
     val reviewReminderEnabled: Boolean = true,
     val reminderHour: Int = 20,
     val reminderMinute: Int = 0

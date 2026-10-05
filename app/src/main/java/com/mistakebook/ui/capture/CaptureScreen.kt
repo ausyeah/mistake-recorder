@@ -45,6 +45,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -84,7 +88,7 @@ private const val GALLERY_MAX_ITEMS = 20
  * 拍照页（CameraX，PRD 7.2）：全屏预览 + 3×3 网格 + 闪光灯/前后摄切换，
  * 快门在左下方是相册入口（支持多选批量导入）。
  */
-@androidx.compose.material3.ExperimentalMaterial3Api
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CaptureScreen(
     container: AppContainer,
@@ -120,10 +124,10 @@ fun CaptureScreen(
     var capturing by remember { mutableStateOf(false) }
 
     // 照片对比度增强开关：进页面读一次设置，改设置后重进页面生效
-    var enhancePhotos by remember { mutableStateOf(true) }
+    var ocrStrength by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(Unit) {
-        enhancePhotos = runCatching { container.settingsStore.snapshotNow().enhancePhotos }
-            .getOrDefault(true)
+        ocrStrength = runCatching { container.settingsStore.snapshotNow().ocrStrength }
+            .getOrDefault(2)
     }
     var importing by remember { mutableStateOf(false) }
     var errorText by remember { mutableStateOf<String?>(null) }
@@ -252,6 +256,41 @@ fun CaptureScreen(
             }
         }
 
+        val strength = ocrStrength
+        if (strength != null) {
+            val options = listOf(
+                R.string.capture_ocr_off,
+                R.string.capture_ocr_light,
+                R.string.capture_ocr_standard,
+                R.string.capture_ocr_strong
+            )
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 90.dp)
+            ) {
+                options.forEachIndexed { index, titleRes ->
+                    SegmentedButton(
+                        selected = strength == index,
+                        onClick = {
+                            ocrStrength = index
+                            scope.launch { container.settingsStore.setOcrStrength(index) }
+                        },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                        colors = SegmentedButtonDefaults.colors(
+                            activeContainerColor = Color.Black.copy(alpha = 0.5f),
+                            inactiveContainerColor = Color.Black.copy(alpha = 0.3f),
+                            activeContentColor = Color.White,
+                            inactiveContentColor = Color.White,
+                            activeBorderColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text(stringResource(titleRes))
+                    }
+                }
+            }
+        }
+
         if (errorText != null) {
             Text(
                 text = errorText.orEmpty(),
@@ -326,7 +365,7 @@ fun CaptureScreen(
                             executor = executor,
                             imageCapture = imageCapture,
                             flashMode = flashMode,
-                            enhance = enhancePhotos,
+                            strength = ocrStrength ?: 2,
                             onCaptured = { path -> onCropped(path) },
                             onError = {
                                 capturing = false
@@ -559,7 +598,7 @@ private fun takePhoto(
     executor: ExecutorService,
     imageCapture: ImageCapture,
     flashMode: Int,
-    enhance: Boolean,
+    strength: Int,
     onCaptured: (String) -> Unit,
     onError: () -> Unit
 ) {
@@ -574,11 +613,11 @@ private fun takePhoto(
         context = context,
         executor = executor,
         imageCapture = imageCapture,
-        enhance = enhance,
+        strength = strength,
         onCaptured = onCaptured,
         onFallback = {
             Log.w(TAG, "文件输出失败，改走内存捕获", it)
-            captureInMemory(context, executor, imageCapture, enhance, onCaptured, onError)
+            captureInMemory(context, executor, imageCapture, strength, onCaptured, onError)
         }
     )
 }
@@ -591,7 +630,7 @@ private fun captureToFile(
     context: Context,
     executor: ExecutorService,
     imageCapture: ImageCapture,
-    enhance: Boolean,
+    strength: Int,
     onCaptured: (String) -> Unit,
     onFallback: (ImageCaptureException) -> Unit
 ) {
@@ -612,7 +651,7 @@ private fun captureToFile(
                 // 顶多少一次增强，不能因为增强失败就不让用户拍照。
                 val normalized = File(out.parentFile, "capture_norm_${System.currentTimeMillis()}.jpg")
                 val ok = runCatching {
-                    com.mistakebook.data.ImageNormalizer.normalize(out, normalized, enhance)
+                    com.mistakebook.data.ImageNormalizer.normalize(out, normalized, strength)
                 }.getOrDefault(false)
                 if (ok && normalized.length() > 0) {
                     out.delete()
@@ -637,7 +676,7 @@ private fun captureInMemory(
     context: Context,
     executor: ExecutorService,
     imageCapture: ImageCapture,
-    enhance: Boolean,
+    strength: Int,
     onCaptured: (String) -> Unit,
     onError: () -> Unit
 ) {
@@ -655,11 +694,7 @@ private fun captureInMemory(
                     val rotated = rotate(bitmap, rotation.toFloat())
                     val out = File(context.cacheDir, "capture_${System.currentTimeMillis()}.jpg")
                     // 这条路径已经手动转过像素了，只需做对比度增强
-                    val final = if (enhance) {
-                        com.mistakebook.data.ImageNormalizer.enhanceForOcr(rotated)
-                    } else {
-                        rotated
-                    }
+                    val final = com.mistakebook.data.ImageNormalizer.enhanceForOcr(rotated, strength)
                     FileOutputStream(out).use { stream ->
                         final.compress(Bitmap.CompressFormat.JPEG, 92, stream)
                     }
