@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -627,55 +626,197 @@ internal fun ProfileRow(
 }
 
 @Composable
-internal fun AddProfileDialog(onDismiss: () -> Unit, onConfirm: (LlmProfile) -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var baseUrl by remember { mutableStateOf("") }
-    var apiKey by remember { mutableStateOf("") }
-    var model by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_add_profile)) },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text(stringResource(R.string.settings_profile_name)) },
-                    singleLine = true
+internal fun MineruKeySection(
+    state: SettingsUiState,
+    viewModel: SettingsViewModel
+) {
+    SettingsGroup(title = stringResource(R.string.settings_mineru_key)) {
+        PasswordField(
+            label = stringResource(R.string.settings_mineru_key),
+            value = state.snapshot.mineruKey,
+            onValueChange = viewModel::setMineruKey
+        )
+        Spacer(Modifier.height(8.dp))
+        TestButton(
+            text = stringResource(R.string.settings_test_mineru),
+            loading = state.testingMineru,
+            onClick = viewModel::testMineru,
+            result = state.mineruTestResult,
+            resultOk = state.mineruTestOk
+        )
+    }
+
+    if (!state.snapshot.mineruConfigured) {
+        FirstRunHint(R.string.settings_hint_mineru_key)
+    }
+}
+
+@Composable
+internal fun LlmProfilesSection(
+    state: SettingsUiState,
+    viewModel: SettingsViewModel,
+    onAddProfileClick: () -> Unit,
+    onShowModelsClick: () -> Unit
+) {
+    SettingsGroup(title = stringResource(R.string.settings_llm_profiles)) {
+        state.snapshot.llmProfiles.forEach { profile ->
+            ProfileRow(
+                profile = profile,
+                selected = profile.id == state.snapshot.activeProfileId,
+                onSelect = { viewModel.selectProfile(profile.id) },
+                onDelete = { viewModel.deleteProfile(profile.id) },
+                onSave = viewModel::saveActiveProfile,
+                onDraftChanged = { viewModel.clearLlmTestResult(profile.id) },
+                onFetchModels = { draft ->
+                    viewModel.fetchModels(draft) { onShowModelsClick() }
+                },
+                onTest = viewModel::testLlm,
+                testing = state.isTestingLlm(profile.id),
+                result = state.llmOutcome(profile.id)?.message,
+                resultOk = state.llmOutcome(profile.id)?.ok ?: false,
+                fetchingModels = state.loadingModels,
+                pickedModel = state.pickedModel,
+                onPickedModelConsumed = viewModel::consumePickedModel
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+        OutlinedButton(
+            onClick = onAddProfileClick,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null)
+            Text(stringResource(R.string.settings_add_profile))
+        }
+        if (!state.snapshot.llmConfigured) {
+            Spacer(Modifier.height(8.dp))
+            FirstRunHint(R.string.settings_hint_llm_key)
+        }
+    }
+}
+
+@Composable
+internal fun MineruParamsSection(
+    state: SettingsUiState,
+    viewModel: SettingsViewModel
+) {
+    SettingsGroup(title = stringResource(R.string.settings_mineru_params)) {
+        SwitchRow(
+            label = stringResource(R.string.settings_attach_image),
+            checked = state.snapshot.attachOriginalImage,
+            onChange = viewModel::setAttachImage
+        )
+        SwitchRow(
+            label = stringResource(R.string.settings_enhance_photos),
+            subtitle = stringResource(R.string.settings_enhance_photos_desc),
+            checked = state.snapshot.enhancePhotos,
+            onChange = viewModel::setEnhancePhotos
+        )
+    }
+}
+
+@Composable
+internal fun PrintDefaultsSection(
+    state: SettingsUiState,
+    viewModel: SettingsViewModel
+) {
+    SettingsGroup(title = stringResource(R.string.settings_print_defaults)) {
+        SwitchRow(
+            label = stringResource(R.string.print_include_image),
+            checked = state.snapshot.printIncludeImage,
+            onChange = viewModel::setPrintIncludeImage
+        )
+        SwitchRow(
+            label = stringResource(R.string.print_show_answer),
+            checked = state.snapshot.printShowAnswer,
+            onChange = viewModel::setPrintShowAnswer
+        )
+        SwitchRow(
+            label = stringResource(R.string.print_blank_redo),
+            checked = state.snapshot.printBlankRedo,
+            onChange = viewModel::setPrintBlankRedo
+        )
+        if (state.snapshot.printBlankRedo) {
+            BlankHeightRow(
+                height = state.snapshot.printBlankHeightPt,
+                onChange = viewModel::setPrintBlankHeight
+            )
+        }
+    }
+}
+
+@Composable
+internal fun ReviewReminderSection(
+    state: SettingsUiState,
+    viewModel: SettingsViewModel,
+    onPickTimeClick: () -> Unit
+) {
+    SettingsGroup(title = stringResource(R.string.settings_review_reminder)) {
+        SwitchRow(
+            label = stringResource(R.string.settings_review_reminder),
+            checked = state.snapshot.reviewReminderEnabled,
+            onChange = viewModel::setReminderEnabled
+        )
+        if (state.snapshot.reviewReminderEnabled) {
+            val hour = state.snapshot.reminderHour
+            val minute = state.snapshot.reminderMinute
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "%02d:%02d".format(hour, minute),
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = baseUrl,
-                    onValueChange = { baseUrl = it },
-                    label = { Text(stringResource(R.string.settings_base_url)) },
-                    singleLine = true
-                )
-                Spacer(Modifier.height(8.dp))
-                PasswordField(
-                    label = stringResource(R.string.settings_api_key),
-                    value = apiKey,
-                    onValueChange = { apiKey = it }
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = model,
-                    onValueChange = { model = it },
-                    label = { Text(stringResource(R.string.settings_model)) },
-                    singleLine = true
+                OutlinedButton(onClick = onPickTimeClick) {
+                    Text(stringResource(R.string.settings_reminder_pick))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun DataManageSection(
+    container: com.mistakebook.di.AppContainer,
+    viewModel: SettingsViewModel,
+    onExportClick: () -> Unit,
+    onRestoreClick: () -> Unit
+) {
+    SettingsGroup(title = stringResource(R.string.settings_data_manage)) {
+        StorageInfoRow(container = container)
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = onExportClick,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_export_backup),
+                    maxLines = 1
                 )
             }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                onConfirm(
-                    LlmProfile(name = name, baseUrl = baseUrl, apiKey = apiKey, model = model)
+            OutlinedButton(
+                onClick = onRestoreClick,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_restore_backup),
+                    maxLines = 1
                 )
-            }) { Text(stringResource(R.string.action_save)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+            }
         }
-    )
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = viewModel::clearTrash,
+            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.error
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.settings_clear_trash))
+        }
+    }
 }
 
 // 题目编辑页共用的学科下拉
