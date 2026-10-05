@@ -412,4 +412,6 @@
     <string name="chat_image_content_description">发送的图片</string>
 
     <string name="print_pdf_hint">需要 PDF？打开生成的 HTML 文件，用浏览器的打印功能（菜单里选「打印」→「另存为 PDF」）即可，页边距与缩放都能调。</string>
+    <string name="crop_title">裁剪题目</string>
+    <string name="crop_selection">框选</string>
 </resources>
