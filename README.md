@@ -23,105 +23,73 @@
 
 ### 配置与录入
 
-<table>
-<tr>
-<td align="center"><img src="docs/screenshots/settings-api.jpg" width="260" alt="MinerU 与大模型配置"><br><sub>MinerU 与大模型配置（DeepSeek 等兼容服务）</sub></td>
-<td align="center"><img src="docs/screenshots/settings-options.jpg" width="260" alt="其他设置选项"><br><sub>其他设置选项</sub></td>
-<td align="center"><img src="docs/screenshots/home.jpg" width="260" alt="主页"><br><sub>主页</sub></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/screenshots/crop-demo.jpg" width="260" alt="裁切图片"><br><sub>框选题目与裁切</sub></td>
-<td align="center"><img src="docs/screenshots/upload-1.jpg" width="260" alt="上传处理一"><br><sub>上传与识别进度 · 1</sub></td>
-<td align="center"><img src="docs/screenshots/upload-2.jpg" width="260" alt="上传处理二"><br><sub>上传与识别进度 · 2</sub></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/screenshots/upload-3.jpg" width="260" alt="上传处理三"><br><sub>上传与识别进度 · 3</sub></td>
-<td align="center"><img src="docs/screenshots/edit-result-1.jpg" width="260" alt="识别结果编辑一"><br><sub>识别结果与题目编辑 · 1</sub></td>
-<td align="center"><img src="docs/screenshots/edit-result-2.jpg" width="260" alt="识别结果编辑二"><br><sub>识别结果与题目编辑 · 2</sub></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/screenshots/question-detail.jpg" width="260" alt="题目详情"><br><sub>题目详情</sub></td>
-<td align="center"><img src="docs/screenshots/home-questions.jpg" width="260" alt="主页题目排布"><br><sub>主页题目排布</sub></td>
-</tr>
-</table>
+<p align="center"><img src="docs/screenshots/settings-api.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="MinerU 与大模型配置"></p>
+
+<p align="center"><b>① 配置</b>：MinerU API Key 与大模型接入（DeepSeek 等兼容服务），可保存多套随时切换</p>
+
+<p align="center"><img src="docs/screenshots/settings-options.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="其他设置选项"></p>
+
+<p align="center"><b>② 其他设置</b>：图片处理、打印默认项、复习提醒、备份与恢复</p>
+
+<p align="center"><img src="docs/screenshots/home.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="主页"></p>
+
+<p align="center"><b>③ 主页</b>：空状态引导，右下角进入拍照 / 相册 / PDF / 手动录入</p>
+
+<p align="center"><img src="docs/screenshots/crop-demo.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="框选题目与裁切"></p>
+
+<p align="center"><b>④ 裁切</b>：拖框选题目、框外压暗、涂鸦遮蔽排除页面噪声</p>
+
+<p align="center"><img src="docs/screenshots/upload-1.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="上传处理一"></p>
+
+<p align="center"><img src="docs/screenshots/upload-2.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="上传处理二"></p>
+
+<p align="center"><img src="docs/screenshots/upload-3.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="上传处理三"></p>
+
+<p align="center"><b>⑤ 上传处理过程</b>：上传 → MinerU 解析 → AI 整理，阶段来自数据库，失败可重试</p>
+
+<p align="center"><img src="docs/screenshots/edit-result-1.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="识别结果编辑一"></p>
+
+<p align="center"><img src="docs/screenshots/edit-result-2.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="识别结果与题目编辑"></p>
+
+<p align="center"><b>⑥ 识别结束产物与编辑页</b>：核对整理结果、补知识点 / 错因 / 难度，确认后入库</p>
+
+<p align="center"><img src="docs/screenshots/question-detail.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="题目详情"></p>
+
+<p align="center"><b>⑦ 题目详情</b>：题干 / 答案 / 解析对照，标记已掌握、点星改难度</p>
+
+<p align="center"><img src="docs/screenshots/home-questions.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="主页题目排布"></p>
+
+<p align="center"><b>⑧ 主页题目排布</b>：按学科 / 掌握状态筛选，搜索、左滑删除可撤销</p>
 
 ### AI 对话
 
-<table>
-<tr>
-<td align="center"><img src="docs/screenshots/chat-conversation.jpg" width="260" alt="AI 对话界面"><br><sub>题目 AI 对话</sub></td>
-<td align="center"><img src="docs/screenshots/chat-history.jpg" width="260" alt="AI 对话记录"><br><sub>AI 对话记录</sub></td>
-</tr>
-</table>
+<p align="center"><img src="docs/screenshots/chat-conversation.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="AI 对话界面"></p>
+
+<p align="center"><b>⑨ 题目 AI 对话</b>：流式回复，可附图片 / PDF / TXT / Markdown / DOCX</p>
+
+<p align="center"><img src="docs/screenshots/chat-history.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="AI 对话记录"></p>
+
+<p align="center"><b>⑩ AI 对话记录</b>：每题一个固定会话 + 自由会话</p>
 
 ### 打印与 PDF
 
-<table>
-<tr>
-<td align="center"><img src="docs/screenshots/print-options.jpg" width="260" alt="打印错题选项"><br><sub>选择题目与打印选项</sub></td>
-<td align="center"><img src="docs/screenshots/browser-preview.jpg" width="260" alt="浏览器打印预览"><br><sub>浏览器预览效果</sub></td>
-<td align="center"><img src="docs/screenshots/system-print-1.jpg" width="260" alt="系统打印操作一"><br><sub>系统打印操作</sub></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/screenshots/system-print-2.jpg" width="260" alt="系统打印操作二"><br><sub>系统打印操作</sub></td>
-<td align="center"><img src="docs/screenshots/final-pdf.jpg" width="260" alt="最终 PDF"><br><sub>最终 PDF 呈现效果</sub></td>
-</tr>
-</table>
+<p align="center"><img src="docs/screenshots/print-options.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="打印错题选项"></p>
 
----
+<p align="center"><b>⑪ 打印选项</b>：勾选题目，可选含原图 / 显示答案解析 / 留白重做</p>
 
-## 功能
+<p align="center"><img src="docs/screenshots/browser-preview.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="浏览器打印预览"></p>
 
-| | |
-|---|---|
-| **四种录入入口** | 拍照（3×3 网格取景 + 自研裁剪页）/ 相册选图 / PDF（文本 PDF 直接抽文字，图片 PDF 逐页走 MinerU，支持页码范围 `1-5,8`）/ 手动录入（完全不依赖 API） |
-| **AI 识别整理** | MinerU v4 解析公式 / 表格 / 手写体 → 大模型纠错整理成结构化错题 → **一律先进人工编辑页确认**，不直接入库 |
-| **噪声排除** | 裁剪页拖框选题目、框外压暗；**涂鸦遮蔽**把红笔批注涂白（不透明纯白，避免被 OCR 当成淡字） |
-| **一题多识别** | 一次识别可能整理出多道题，编辑页顶部左右翻页，带原始识别文本对照 |
-| **间隔复习** | 掌握状态（未掌握 / 已掌握）、难度星级、每日待复习提醒、详情页一键切换 |
-| **错题本分类** | 学科与错题本正交：一道题一个学科、可归入多个错题本；支持新建 / 重命名 / 归档 |
-| **打印导出** | 勾选题目 → 生成**单个自包含 HTML**（图片 base64 内嵌、公式原生 MathML，不联网也能看）；浏览器打开后可另存为 PDF。可选：含原图 / 显示答案解析 / 留白重做 |
-| **AI 对话** | 每题一个固定会话 + 自由会话；流式回复（端点不支持时自动降级为一次性返回）；可附图片 / PDF / TXT / Markdown / DOCX（文档本地抽文本，不上传原文件） |
-| **备份恢复** | zip = 数据库 + 全部文件，覆盖式恢复 |
+<p align="center"><b>⑫ 浏览器预览</b>：生成自包含 HTML，浏览器打开即见排版效果</p>
 
-## 技术栈
+<p align="center"><img src="docs/screenshots/system-print-1.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="系统打印操作一"></p>
 
-| 项 | 选型 |
-|---|---|
-| 语言 / UI | Kotlin + Jetpack Compose + Material3，全中文界面 |
-| 架构 | 单 Activity + Navigation-Compose；MVVM（ViewModel + StateFlow + 不可变 UiState） |
-| 网络 | Retrofit + OkHttp + kotlinx.serialization |
-| 本地存储 | Room（KSP，Schema 导出）+ DataStore（非敏感设置）+ EncryptedSharedPreferences（API Key） |
-| 相机 / 图像 | CameraX + Coil |
-| 公式渲染 | WebView + KaTeX |
-| PDF | 自写零依赖文本抽取器 + `PdfRenderer` 栅格化（导出 HTML，PDF 由浏览器打印） |
-| 版本 | `minSdk 26`（Android 8.0）/ `targetSdk 35` / JDK 17 / AGP 8.7 |
+<p align="center"><img src="docs/screenshots/system-print-2.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="系统打印操作二"></p>
 
-规模：约 2.1 万行 Kotlin，`data / di / domain / net / pipeline / print / review / ui` 分层，44+ 个单元测试文件（450+ 用例）。
+<p align="center"><b>⑬ 打印操作</b>：菜单 → 打印 → 页面边距 / 缩放可调 → 另存为 PDF</p>
 
----
+<p align="center"><img src="docs/screenshots/final-pdf.jpg" width="100%" style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);" alt="最终 PDF 呈现效果"></p>
 
-## 安装
-
-### 方式一：下载 APK（推荐）
-
-1. 前往 [Releases](https://github.com/ausyeah/mistake-recorder/releases) 下载最新的 `mistakebook-<版本>-android.apk`；
-2. 传输到手机（或用浏览器直接下载）后点击安装，需允许「安装未知来源应用」；
-3. 安装包**不预置任何 API Key**，首次启动后请按下方教程在设置页自行填写。
-
-> 正式发布版本使用**固定发布签名**，升级时可覆盖安装、不会丢数据。
-> 若仓库未配置签名 Secrets，CI 产出的只是无签名 debug 包（仅能本机试用、升级需卸载）；
-> 配置方法见下文「维护者：正式签名发布」。
->
-> 无论哪种包都**不预置任何 API Key**，首次启动后在设置页自行填写。
-
-### 方式二：本地构建
-
-```bash
-# 需要 JDK 17 与 Android SDK（platform 35 / build-tools 35）
-cp local.properties.template local.properties   # 填 sdk.dir
-./gradlew assembleDebug -PprefillKeys=false    # 产出 app/build/outputs/apk/debug/app-debug.apk
-```
+<p align="center"><b>⑭ 最终 PDF</b>：A4 排版，公式 / 表格 / 题号完整呈现</p>
 
 ---
 
