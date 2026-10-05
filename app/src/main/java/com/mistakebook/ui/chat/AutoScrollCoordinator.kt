@@ -45,9 +45,13 @@ class AutoScrollCoordinator {
  *
  * ## 谁在滚动
  *
- * Compose 官方 `LazyListState.isScrollInProgress` 混合了手势、fling 与程序滚动，
- * 不能当作「用户正在拖」。这里用 `interactionSource` 的拖拽状态判定手指：
- * 按住就交出滚动权，松手后等惯性滑完，再按几何位置决定要不要收回。
+ * 「是否跟随」由**几何位置**驱动，不依赖松手时机：
+ * - 只要最新一条不在视口底部，就暂停跟随（用户在上面看历史，新内容不得拽走）；
+ * - 回到 / 滚到底部，才恢复跟随。
+ *
+ * `isDragged`（按住）只是**提前**暂停的输入：手一按就停，响应更快；
+ * 但恢复跟随只认位置——避免松手时序与惯性滚动竞争时，
+ * `following` 被误置回 true、流式输出把列表拖回底部的问题。
  */
 @Composable
 fun rememberAutoScrollEffect(
@@ -58,20 +62,18 @@ fun rememberAutoScrollEffect(
     val isDragged by state.interactionSource.collectIsDraggedAsState()
     val tolerancePx = with(LocalDensity.current) { BOTTOM_TOLERANCE_DP.roundToPx() }
 
-    LaunchedEffect(isDragged, tolerancePx) {
-        if (isDragged) {
-            coordinator.pause()
-        } else {
-            snapshotFlow { state.isScrollInProgress }.first { !it }
-            if (state.isAtBottom(tolerancePx)) coordinator.resume()
-        }
+    // 手指按住立即交出滚动权（响应快）；松手后的恢复交给下面的位置驱动。
+    LaunchedEffect(isDragged) {
+        if (isDragged) coordinator.pause()
     }
 
+    // 位置驱动：不在底部就暂停，回到底部才恢复。
+    // pause()/resume() 会同步维护 showJumpButton，这里不需要再写按钮逻辑。
     LaunchedEffect(state, tolerancePx) {
         snapshotFlow { state.isAtBottom(tolerancePx) }
             .distinctUntilChanged()
             .collect { atBottom ->
-                coordinator.showJumpButton = !coordinator.following || !atBottom
+                if (atBottom) coordinator.resume() else coordinator.pause()
             }
     }
 

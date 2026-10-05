@@ -8,7 +8,7 @@
     <string name="action_retry">重试</string>
     <string name="action_save">保存</string>
     <string name="action_delete">删除</string>
-    <string name="swipe_delete_hint">再点删除</string>
+    <string name="swipe_delete_hint">删除</string>
     <string name="edit_audit">检查</string>
     <string name="action_undo">撤销</string>
     <string name="swipe_delete_action">删除这道题</string>

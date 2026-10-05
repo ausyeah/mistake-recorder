@@ -83,9 +83,9 @@ android {
         targetSdk = 35
         // versionCode 必须单调递增，否则手机上已装的同 versionCode 包
         // versionCode 必须单调递增：Android 拒绝覆盖安装同 versionCode 的包。
-        // 1 = v0.0.1（开源首版，与 Release tag 对齐）
-        versionCode = 1
-        versionName = "0.0.1"
+        // versionCode 单调递增：1 = v0.0.1，2 = v0.0.2
+        versionCode = 2
+        versionName = "0.0.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
