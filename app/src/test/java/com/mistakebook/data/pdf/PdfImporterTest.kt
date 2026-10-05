@@ -5,19 +5,34 @@ import android.content.ContextWrapper
 import com.mistakebook.data.AppFiles
 import com.mistakebook.data.local.CaptureTaskDao
 import com.mistakebook.data.local.entities.CaptureTask
+import com.mistakebook.data.prefs.SettingsStore
 import com.mistakebook.data.repos.CaptureTaskRepository
 import com.mistakebook.domain.TaskStatus
+import com.mistakebook.net.llm.ChatRequest
+import com.mistakebook.net.llm.ChatResponse
+import com.mistakebook.net.llm.LlmApi
+import com.mistakebook.net.llm.ModelsResponse
+import com.mistakebook.net.mineru.ExtractResultsData
+import com.mistakebook.net.mineru.FileUrlsData
+import com.mistakebook.net.mineru.FileUrlsRequest
+import com.mistakebook.net.mineru.MineruApi
+import com.mistakebook.net.mineru.MineruEnvelope
+import com.mistakebook.pipeline.LlmClient
+import com.mistakebook.pipeline.MineruClient
 import com.mistakebook.pipeline.RecognitionEngine
 import com.mistakebook.pipeline.RecognitionSubmitter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
+import okhttp3.RequestBody
+import okhttp3.ResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import retrofit2.Response
 import java.io.File
 
 /**
@@ -56,8 +71,11 @@ class PdfImporterTest {
 
         fakeDao = FakeCaptureTaskDao()
         val repo = CaptureTaskRepository(fakeDao)
-        val dummyEngine = FakeRecognitionEngine()
-        submitter = RecognitionSubmitter(repo, dummyEngine)
+        val mineruClient = MineruClient(DummyMineruApi(), files)
+        val llmClient = LlmClient(DummyLlmApi())
+        val settingsStore = SettingsStore(fakeContext)
+        val realEngine = RecognitionEngine(repo, mineruClient, llmClient, settingsStore)
+        submitter = RecognitionSubmitter(repo, realEngine)
         pdfImporter = PdfImporter(fakeContext, files, submitter)
     }
 
@@ -207,33 +225,17 @@ class PdfImporterTest {
         override suspend fun clearAll() { storage.clear() }
     }
 
-    private class FakeRecognitionEngine : RecognitionEngine(
-        taskRepository = CaptureTaskRepository(FakeCaptureTaskDao()),
-        mineruClient = DummyMineruClient(),
-        llmClient = DummyLlmClient(),
-        settingsStore = DummySettingsStore()
-    )
-
-    private class DummyMineruClient : com.mistakebook.pipeline.MineruClient(
-        api = DummyMineruApi(),
-        files = AppFiles(FakeContext(File("/tmp"), File("/tmp")))
-    )
-
-    private class DummyLlmApi : com.mistakebook.net.llm.LlmApi {
-        override suspend fun chatCompletions(url: String, authorization: String, request: com.mistakebook.net.llm.ChatRequest): retrofit2.Response<com.mistakebook.net.llm.ChatResponse> = TODO()
-        override suspend fun listModels(url: String, authorization: String): retrofit2.Response<com.mistakebook.net.llm.ModelsResponse> = TODO()
+    private class DummyLlmApi : LlmApi {
+        override suspend fun chatCompletions(url: String, authorization: String, request: ChatRequest): Response<ChatResponse> = TODO()
+        override suspend fun listModels(url: String, authorization: String): Response<ModelsResponse> = TODO()
     }
 
-    private class DummyMineruApi : com.mistakebook.net.mineru.MineruApi {
-        override suspend fun fileUrlsBatch(authorization: String, request: com.mistakebook.net.mineru.FileUrlsRequest): retrofit2.Response<com.mistakebook.net.mineru.MineruEnvelope<com.mistakebook.net.mineru.FileUrlsData>> = TODO()
-        override suspend fun uploadFile(uploadUrl: String, body: okhttp3.RequestBody): retrofit2.Response<okhttp3.ResponseBody> = TODO()
-        override suspend fun extractResults(authorization: String, batchId: String): retrofit2.Response<com.mistakebook.net.mineru.MineruEnvelope<com.mistakebook.net.mineru.ExtractResultsData>> = TODO()
-        override suspend fun downloadZip(zipUrl: String): retrofit2.Response<okhttp3.ResponseBody> = TODO()
+    private class DummyMineruApi : MineruApi {
+        override suspend fun fileUrlsBatch(authorization: String, request: FileUrlsRequest): Response<MineruEnvelope<FileUrlsData>> = TODO()
+        override suspend fun uploadFile(uploadUrl: String, body: RequestBody): Response<ResponseBody> = TODO()
+        override suspend fun extractResults(authorization: String, batchId: String): Response<MineruEnvelope<ExtractResultsData>> = TODO()
+        override suspend fun downloadZip(zipUrl: String): Response<ResponseBody> = TODO()
     }
-
-    private class DummyLlmClient : com.mistakebook.pipeline.LlmClient(DummyLlmApi())
-
-    private class DummySettingsStore : com.mistakebook.data.prefs.SettingsStore(FakeContext(File("/tmp"), File("/tmp")))
 
     private class FakeContext(
         private val filesDirFile: File,
