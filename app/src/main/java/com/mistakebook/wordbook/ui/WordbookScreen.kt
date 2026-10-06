@@ -216,39 +216,65 @@ private fun WordbookHeaderSummary(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(okColor)
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    text = "今日已学 $studiedToday 词",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            SummaryStatBadge(
+                label = "今日已学",
+                value = "$studiedToday",
+                accentColor = okColor,
+                bgColor = okColor.copy(alpha = if (isDark) 0.16f else 0.10f),
+                modifier = Modifier.weight(1f)
+            )
+            SummaryStatBadge(
+                label = "待复习错词",
+                value = "$wrongCount",
+                accentColor = if (wrongCount > 0) errorColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                bgColor = if (wrongCount > 0) errorColor.copy(alpha = if (isDark) 0.16f else 0.10f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                modifier = Modifier.weight(1f)
+            )
+            SummaryStatBadge(
+                label = "已掌握",
+                value = "$masteredCount",
+                accentColor = primaryColor,
+                bgColor = primaryColor.copy(alpha = if (isDark) 0.16f else 0.10f),
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = "待复习错词: $wrongCount",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (wrongCount > 0) errorColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = if (wrongCount > 0) FontWeight.Bold else FontWeight.Normal
-                )
-                Text(
-                    text = "已掌握: $masteredCount",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = primaryColor,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+@Composable
+private fun SummaryStatBadge(
+    label: String,
+    value: String,
+    accentColor: Color,
+    bgColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = bgColor,
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = accentColor
+            )
+            Spacer(Modifier.height(1.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp
+            )
         }
     }
 }
@@ -269,6 +295,7 @@ private fun WordbookTabBar(
         selectedTabIndex = selectedTabIndex,
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.primary,
+        divider = {},
         indicator = { tabPositions ->
             if (selectedTabIndex in tabPositions.indices) {
                 TabRowDefaults.SecondaryIndicator(
@@ -308,6 +335,7 @@ private fun StudyView(
     state: WordbookUiState,
     viewModel: WordbookViewModel
 ) {
+    val isDark = LocalDarkTheme.current
     val currentWord = state.currentWord
 
     if (currentWord == null && !state.isLoading) {
@@ -383,13 +411,13 @@ private fun StudyView(
 
         // 单词主纸质卡片
         if (currentWord != null) {
-            val isDark = LocalDarkTheme.current
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp),
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.outline))
                 ) {

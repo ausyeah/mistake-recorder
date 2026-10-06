@@ -81,13 +81,23 @@ android {
         applicationId = "com.mistakebook$appIdSuffix"
         minSdk = 26
         targetSdk = 35
-        // versionCode 必须单调递增：1 = v0.0.1, 2 = v0.0.2, 3 = v0.0.3, 4 = v0.0.4, 5 = v0.0.5, 6 = v0.0.6, 7 = v0.0.7, 8 = v0.0.8, 9 = v0.0.9
-        versionCode = 9
-        versionName = "0.0.9"
+        // versionCode 必须单调递增：1 = v0.0.1, 2 = v0.0.2, 3 = v0.0.3, 4 = v0.0.4, 5 = v0.0.5, 6 = v0.0.6, 7 = v0.0.7, 8 = v0.0.8, 9 = v0.0.9, 10 = v0.0.10
+        versionCode = 10
+        versionName = "0.0.10"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
+        // 固定 debug 签名证书：杜绝 CI 每次运行重新生成随机 debug.keystore 导致覆盖安装报「签名不一致」
+        val stableDebugKey = rootProject.file("signing/debug.keystore")
+        if (stableDebugKey.exists()) {
+            getByName("debug") {
+                storeFile = stableDebugKey
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
         if (releaseStoreFile != null) {
             create("release") {
                 storeFile = releaseStoreFile

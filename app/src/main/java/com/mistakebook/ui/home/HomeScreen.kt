@@ -262,82 +262,6 @@ fun HomeScreen(
 
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
-        topBar = {
-            TopAppBar(
-                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
-                title = {
-                    // 搜索框放导航栏正中，做窄一点。
-                    // 之前它独占一整行压在筛选条上方，把首屏最宝贵的位置全占了。
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 4.dp, end = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        OutlinedTextField(
-                            value = state.keyword,
-                            onValueChange = viewModel::setKeyword,
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = {
-                                Text(
-                                    text = stringResource(R.string.home_search_hint),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Search,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            },
-                            trailingIcon = {
-                                if (state.keyword.isNotEmpty()) {
-                                    IconButton(
-                                        onClick = { viewModel.setKeyword("") },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = stringResource(R.string.home_search_clear),
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
-                            },
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.bodySmall,
-                            shape = RoundedCornerShape(18.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = Color.Transparent
-                            )
-                        )
-                    }
-                },
-                actions = {
-                    // 原先这里有个红色「待复习」文字角标。它不成图标、颜色又跳，
-                    // 顶部一律不显示任何文字标记。
-                    // 这里先后出现过两种：红色「待复习」角标、中性的「共 N 题」徽标，
-                    // 用户两次都要求删掉——搜索栏右边紧挨着图标按钮，
-                    // 塞一段文字在中间既突兀又抢注意力，题数在筛选菜单里已经能看到。
-                    IconButton(onClick = onOpenPrint) {
-                        Icon(Icons.Default.Print, contentDescription = stringResource(R.string.home_action_print))
-                    }
-                    // AI 对话入口。用对话气泡图标而不是 AutoAwesome：
-                    // 后者在首页已经有别的含义（智能处理），这里要的是「聊过的话」
-                    IconButton(onClick = onOpenChatList) {
-                        Icon(Icons.Default.Forum, contentDescription = stringResource(R.string.chat_list_title))
-                    }
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.home_action_settings))
-                    }
-                }
-            )
-        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showAddSheet = true },
@@ -348,6 +272,57 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            // 优雅沉浸式搜索栏（整合至首屏内容区，消除多层顶部栏冗余）
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+            ) {
+                OutlinedTextField(
+                    value = state.keyword,
+                    onValueChange = viewModel::setKeyword,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(
+                            text = stringResource(R.string.home_search_hint),
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    trailingIcon = {
+                        if (state.keyword.isNotEmpty()) {
+                            IconButton(
+                                onClick = { viewModel.setKeyword("") },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.home_search_clear),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyMedium,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = Color.Transparent
+                    )
+                )
+            }
+
             FilterRow(
                 state = state,
                 onStatusChange = viewModel::setStatus,

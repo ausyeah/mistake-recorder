@@ -17,6 +17,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Icon
@@ -87,7 +89,13 @@ fun MainPortalScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Spacer(modifier = Modifier.width(44.dp))
+                    Text(
+                        text = if (pagerState.currentPage == 0) "错题本" else "单词书",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.width(68.dp)
+                    )
 
                     PortalSegmentedControl(
                         selectedIndex = pagerState.currentPage,
@@ -98,19 +106,37 @@ fun MainPortalScreen(
                         }
                     )
 
-                    if (pagerState.currentPage == 1) {
-                        IconButton(
-                            onClick = onOpenSettings,
-                            modifier = Modifier.size(44.dp)
-                        ) {
+                    Row(
+                        modifier = Modifier.width(108.dp),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (pagerState.currentPage == 0) {
+                            IconButton(onClick = onOpenPrint, modifier = Modifier.size(36.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.Print,
+                                    contentDescription = stringResource(R.string.home_action_print),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            IconButton(onClick = onOpenChatList, modifier = Modifier.size(36.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.Forum,
+                                    contentDescription = stringResource(R.string.chat_list_title),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        IconButton(onClick = onOpenSettings, modifier = Modifier.size(36.dp)) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = stringResource(R.string.home_action_settings),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                    } else {
-                        Spacer(modifier = Modifier.width(44.dp))
                     }
                 }
             }

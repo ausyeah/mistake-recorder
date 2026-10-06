@@ -203,3 +203,20 @@
    - 题干卡片附带专属 `🏷️ 义项辨析 · 熟词僻义自测` 书签标志与指导提示；
    - 选项卡片主文案为大号衬线英文单词，作答后即时展开该选项对应的中文释义，供学习者迅速对比混淆项；
    - 答错时提供高对比度自适应警示卡片，详尽列出 `正确答案：word（完整释义）` 与「下一题」推进按钮。
+
+## 签名一致性与 UI 视觉层级高级审美升级 (2024-10)
+
+### 背景与痛点
+1. **覆盖安装报「签名不一致」**：GitHub Actions 运行在干净容器中，若未配置 release keystore，每次 build 自动生成随机 `debug.keystore`，导致打出的 APK 每次签名指纹 SHA-256 均不相同，Android 系统校验时判定为非法覆盖安装而拒绝更新；
+2. **顶栏多层堆叠冗余**：错题本页面原先同时渲染了 `MainPortalScreen` 顶栏与 `HomeScreen` 内置 `TopAppBar`，导致上下两层顶栏强行堆叠，视觉逼仄拥挤；
+3. **视觉高级感不足**：单词书统计和卡片线条较粗糙生硬，缺乏呼吸感与高级纸质书质感。
+
+### 决策内容
+1. **固化 Debug 签名密钥 ([app/build.gradle.kts](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/build.gradle.kts))**：
+   - 将稳定的 `signing/debug.keystore` 纳入仓库，并在 Gradle `signingConfigs.getByName("debug")` 中显式绑定；无论 CI 容器如何重建，产出的 APK 签名证书完全恒定一致，用户手机可无缝直接覆盖升级。
+2. **消除双顶栏并统一操作架构 ([MainPortalScreen.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/ui/portal/MainPortalScreen.kt), [HomeScreen.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/ui/home/HomeScreen.kt))**：
+   - 顶层单顶栏整合：左侧呈现当前模块标题（错题本/单词书），中部放置分段滑动胶囊，右侧按上下文自适应提供快捷操作（错题本显示打印+AI聊天+设置，单词书显示设置）；
+   - 移除 `HomeScreen` 冗余的整个 `TopAppBar`，将搜索框自然嵌入首屏内容顶部，配合圆角与微透底色，实现轻盈舒展的沉浸式体验。
+3. **单词书纸质化高级美感重构 ([WordbookScreen.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/wordbook/ui/WordbookScreen.kt))**：
+   - 顶部统计条重构为 3 个色彩柔和、微圆角（12.dp）的雅致统计胶囊（今日已学 / 待复习错词 / 已掌握），视觉呼吸感显著提升；
+   - 移除 Tab 栏生硬分割线，增加卡片微阴影与 20.dp 圆润导角，大幅提升视觉精致度。
