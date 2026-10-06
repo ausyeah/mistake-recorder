@@ -158,3 +158,21 @@
 3. **错词复习过关门槛轻量化**：
    - 将移出错词本的条件由生硬的 `newReps >= 3` 优化为 `newReps >= 1`；
    - 答错进入错词本并在 8 题后安排 1 次间隔强化；当它以间隔复习形式出现并被用户正确作答时，说明已强化记忆，立刻从活跃错词本毕业（同时长期保留在「曾错词」归档及学习历史中），大幅减轻刷题挫败感。
+
+## 主门户与背单词页面左右手势滑动切换支持 (2024-10)
+
+### 背景与痛点
+用户反馈：“左右滑动不能切换页面”。
+经排查：
+1. **主门户静态切换**：原 `MainPortalScreen` 仅使用 `Crossfade` 和顶部单选分段胶囊控制页面可见性，未挂载手势监听，在「错题本」与「背单词」之间左右划动无法触发任何翻页响应；
+2. **单词书内部静态切换**：原 `WordbookScreen` 使用 `Box` + `when (state.currentTab)` 根据选中状态显示对应的 4 个功能模块（学习刷题、错题本、词库检索、学习统计），用户同样无法通过左右滑动手势在各 Tab 间穿梭。
+
+### 决策内容
+1. **全链路迁移至 Compose Foundation `HorizontalPager` ([MainPortalScreen.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/ui/portal/MainPortalScreen.kt), [WordbookScreen.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/wordbook/ui/WordbookScreen.kt))**：
+   - 顶层 `MainPortalScreen` 引入 `HorizontalPager(state = pagerState)`（2 页：错题本与背单词）；
+   - 单词书内部 `WordbookScreen` 同样引入 `HorizontalPager(state = pagerState)`（4 页：学习刷题、错题本、词库检索、学习统计）；
+2. **标签指示器与滑动手势双向严格同步**：
+   - 点击标签胶囊/Tab 时：触发协程执行 `pagerState.animateScrollToPage(index)`，享受丝滑位移动画；
+   - 用户屏幕手势划动时：通过 `LaunchedEffect(pagerState.currentPage)` 监听页码变更，实时通知 ViewModel 更新当前业务状态，保证顶部高亮胶囊与下划线游标毫秒级与手势同步；
+3. **利用 Nested Scroll 实现自然的分层滑动冒泡**：
+   - Compose 的 `HorizontalPager` 原生支持嵌套滚动（NestedScrollConnection）。当用户在《单词书》首页（学习刷题）向右滑至边缘时，滑动事件自动冒泡至外层 `MainPortalScreen`，自然顺滑地切回「错题本」页面；而在单词书各子页面之间滑动则在内层切换，符合现代移动端手势交互直觉。

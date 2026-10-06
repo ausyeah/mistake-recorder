@@ -1,6 +1,5 @@
 package com.mistakebook.ui.portal
 
-import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
@@ -26,10 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,9 +41,10 @@ import com.mistakebook.di.AppContainer
 import com.mistakebook.ui.home.HomeScreen
 import com.mistakebook.ui.theme.PaperPrimary
 import com.mistakebook.wordbook.ui.WordbookScreen
+import kotlinx.coroutines.launch
 
 /**
- * 主门户界面：支持纸质化风格双核切换（0: 错题本, 1: 背单词）。
+ * 主门户界面：支持纸质化风格双核切换（0: 错题本, 1: 背单词，支持左右滑动手势切换）。
  */
 @Composable
 fun MainPortalScreen(
@@ -64,12 +63,12 @@ fun MainPortalScreen(
     onOpenQuestion: (Long) -> Unit,
     onOpenChatList: () -> Unit = {}
 ) {
-    // 默认展示错题本；如果有待复习通知点击进入，自动保持在错题本
-    var selectedPortalIndex by rememberSaveable { mutableIntStateOf(0) }
+    val pagerState = rememberPagerState(initialPage = 0) { 2 }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(filterDueRequest) {
         if (filterDueRequest > 0) {
-            selectedPortalIndex = 0
+            pagerState.animateScrollToPage(0)
         }
     }
 
@@ -91,11 +90,15 @@ fun MainPortalScreen(
                     Spacer(modifier = Modifier.width(44.dp))
 
                     PortalSegmentedControl(
-                        selectedIndex = selectedPortalIndex,
-                        onSelectIndex = { selectedPortalIndex = it }
+                        selectedIndex = pagerState.currentPage,
+                        onSelectIndex = { index ->
+                            scope.launch {
+                                pagerState.animateScrollToPage(index)
+                            }
+                        }
                     )
 
-                    if (selectedPortalIndex == 1) {
+                    if (pagerState.currentPage == 1) {
                         IconButton(
                             onClick = onOpenSettings,
                             modifier = Modifier.size(44.dp)
@@ -113,39 +116,35 @@ fun MainPortalScreen(
             }
         }
     ) { paddingValues ->
-        Box(
+        HorizontalPager(
+            state = pagerState,
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-        ) {
-            Crossfade(
-                targetState = selectedPortalIndex,
-                label = "PortalTransition"
-            ) { index ->
-                when (index) {
-                    0 -> {
-                        HomeScreen(
-                            container = container,
-                            filterDue = filterDue,
-                            filterDueRequest = filterDueRequest,
-                            pickedNotebookId = pickedNotebookId,
-                            onNotebookPicked = onNotebookPicked,
-                            onAddByPhoto = onAddByPhoto,
-                            onCropImage = onCropImage,
-                            onImportPdf = onImportPdf,
-                            onAddManual = onAddManual,
-                            onOpenSettings = onOpenSettings,
-                            onOpenPrint = onOpenPrint,
-                            onOpenNotebooks = onOpenNotebooks,
-                            onOpenQuestion = onOpenQuestion,
-                            onOpenChatList = onOpenChatList
-                        )
-                    }
-                    1 -> {
-                        WordbookScreen(
-                            container = container
-                        )
-                    }
+        ) { page ->
+            when (page) {
+                0 -> {
+                    HomeScreen(
+                        container = container,
+                        filterDue = filterDue,
+                        filterDueRequest = filterDueRequest,
+                        pickedNotebookId = pickedNotebookId,
+                        onNotebookPicked = onNotebookPicked,
+                        onAddByPhoto = onAddByPhoto,
+                        onCropImage = onCropImage,
+                        onImportPdf = onImportPdf,
+                        onAddManual = onAddManual,
+                        onOpenSettings = onOpenSettings,
+                        onOpenPrint = onOpenPrint,
+                        onOpenNotebooks = onOpenNotebooks,
+                        onOpenQuestion = onOpenQuestion,
+                        onOpenChatList = onOpenChatList
+                    )
+                }
+                1 -> {
+                    WordbookScreen(
+                        container = container
+                    )
                 }
             }
         }

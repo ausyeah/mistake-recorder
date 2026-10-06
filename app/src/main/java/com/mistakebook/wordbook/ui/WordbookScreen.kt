@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -59,6 +61,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -116,19 +120,50 @@ fun WordbookScreen(
                     masteredCount = state.masteredCount
                 )
 
+                val tabs = remember {
+                    listOf(
+                        WordbookTab.STUDY to "学习刷题",
+                        WordbookTab.WRONG_BOOK to "错题本",
+                        WordbookTab.LIBRARY to "词库检索",
+                        WordbookTab.STATS to "学习统计"
+                    )
+                }
+                val pagerState = rememberPagerState(initialPage = state.currentTab.ordinal) { tabs.size }
+                val scope = rememberCoroutineScope()
+
+                // 外部变更 tab 时驱动 pager 滚动
+                LaunchedEffect(state.currentTab) {
+                    if (pagerState.currentPage != state.currentTab.ordinal) {
+                        pagerState.animateScrollToPage(state.currentTab.ordinal)
+                    }
+                }
+
+                // 用户滑动手势切页时同步 viewModel
+                LaunchedEffect(pagerState.currentPage) {
+                    val targetTab = tabs[pagerState.currentPage].first
+                    if (state.currentTab != targetTab) {
+                        viewModel.setTab(targetTab)
+                    }
+                }
+
                 // 核心功能标签栏
                 WordbookTabBar(
-                    selectedTab = state.currentTab,
-                    onSelectTab = viewModel::setTab
+                    selectedTabIndex = pagerState.currentPage,
+                    onSelectTabIndex = { index ->
+                        scope.launch {
+                            pagerState.animateScrollToPage(index)
+                        }
+                    }
                 )
 
-                // 各子视图切换
-                Box(
+                // 各子视图水平滑动切换
+                HorizontalPager(
+                    state = pagerState,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                ) {
-                    when (state.currentTab) {
+                ) { page ->
+                    when (tabs[page].first) {
                         WordbookTab.STUDY -> StudyView(
                             state = state,
                             viewModel = viewModel
@@ -220,8 +255,8 @@ private fun WordbookHeaderSummary(
 
 @Composable
 private fun WordbookTabBar(
-    selectedTab: WordbookTab,
-    onSelectTab: (WordbookTab) -> Unit
+    selectedTabIndex: Int,
+    onSelectTabIndex: (Int) -> Unit
 ) {
     val tabs = listOf(
         WordbookTab.STUDY to "学习刷题",
@@ -231,22 +266,24 @@ private fun WordbookTabBar(
     )
 
     TabRow(
-        selectedTabIndex = selectedTab.ordinal,
+        selectedTabIndex = selectedTabIndex,
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.primary,
         indicator = { tabPositions ->
-            TabRowDefaults.SecondaryIndicator(
-                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab.ordinal]),
-                color = MaterialTheme.colorScheme.primary,
-                height = 3.dp
-            )
+            if (selectedTabIndex in tabPositions.indices) {
+                TabRowDefaults.SecondaryIndicator(
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                    color = MaterialTheme.colorScheme.primary,
+                    height = 3.dp
+                )
+            }
         }
     ) {
-        tabs.forEach { (tab, title) ->
-            val isSelected = selectedTab == tab
+        tabs.forEachIndexed { index, (_, title) ->
+            val isSelected = selectedTabIndex == index
             Tab(
                 selected = isSelected,
-                onClick = { onSelectTab(tab) },
+                onClick = { onSelectTabIndex(index) },
                 selectedContentColor = MaterialTheme.colorScheme.primary,
                 unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 text = {
