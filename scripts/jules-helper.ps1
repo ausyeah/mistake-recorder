@@ -1,11 +1,11 @@
-﻿<#
+<#
 .SYNOPSIS
-    Jules API & GitHub 协作辅助脚本，用于自动化派发任务、审查、追加提示词及合并发布。
+    Jules API & GitHub collaboration helper script.
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action list-sources
     powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action list
-    powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action new -Title "测试任务" -Prompt "补充单测"
-    powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action feedback -SessionId "12345" -Message "请修复编译错误"
+    powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action new -Title "Task" -Prompt "Prompt"
+    powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action feedback -SessionId "12345" -Message "Fix this"
     powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action check-pr -PrNumber 18
     powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action merge-pr -PrNumber 18 -CommitTitle "feat: merge"
 #>
@@ -25,17 +25,16 @@ $ErrorActionPreference = "Stop"
 
 function Get-JulesHeaders {
     if (-not $env:JULES_API_KEY) {
-        throw "环境变量 JULES_API_KEY 未设置！"
+        throw "Environment variable JULES_API_KEY is not set!"
     }
     return @{
         "X-Goog-Api-Key" = $env:JULES_API_KEY
-        "Content-Type"   = "application/json"
     }
 }
 
 function Get-GitHubHeaders {
     if (-not $env:GITHUB_TOKEN) {
-        throw "环境变量 GITHUB_TOKEN 未设置！"
+        throw "Environment variable GITHUB_TOKEN is not set!"
     }
     return @{
         "Authorization" = "token $env:GITHUB_TOKEN"
@@ -80,8 +79,9 @@ function Send-JulesFeedback {
     $body = @{
         "prompt" = $FeedbackMessage
     } | ConvertTo-Json
+    $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
     $url = "https://jules.googleapis.com/v1alpha/sessions/$($id):sendMessage"
-    $res = Invoke-RestMethod -Uri $url -Headers $headers -Method Post -Body $body
+    $res = Invoke-RestMethod -Uri $url -Headers $headers -Method Post -Body $bodyBytes -ContentType "application/json; charset=utf-8"
     return $res
 }
 
@@ -106,7 +106,8 @@ function New-JulesTask {
         "requirePlanApproval" = $RequireApproval
     }
     $body = $payload | ConvertTo-Json -Depth 5
-    $res = Invoke-RestMethod -Uri "https://jules.googleapis.com/v1alpha/sessions" -Headers $headers -Method Post -Body $body
+    $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
+    $res = Invoke-RestMethod -Uri "https://jules.googleapis.com/v1alpha/sessions" -Headers $headers -Method Post -Body $bodyBytes -ContentType "application/json; charset=utf-8"
     return $res
 }
 
@@ -141,7 +142,7 @@ function Merge-GitHubPr {
     return $res
 }
 
-# CLI 调度分支
+# CLI routing
 if ($Action -eq "list-sources") {
     Get-JulesSources | Select-Object name, id | Format-Table -AutoSize
 } elseif ($Action -eq "list") {
@@ -149,38 +150,38 @@ if ($Action -eq "list-sources") {
     if ($sessions) {
         $sessions | Select-Object name, title, state, createTime | Format-Table -AutoSize
     } else {
-        Write-Host "当前无活动 Session。" -ForegroundColor Yellow
+        Write-Host "No active Jules sessions found." -ForegroundColor Yellow
     }
 } elseif ($Action -eq "get") {
-    if (-not $SessionId) { throw "-SessionId 必填" }
+    if (-not $SessionId) { throw "-SessionId is required" }
     Get-JulesSession -TargetSessionId $SessionId | ConvertTo-Json -Depth 5
 } elseif ($Action -eq "activities") {
-    if (-not $SessionId) { throw "-SessionId 必填" }
+    if (-not $SessionId) { throw "-SessionId is required" }
     Get-JulesActivities -TargetSessionId $SessionId | Select-Object name, createTime, type | Format-Table -AutoSize
 } elseif ($Action -eq "new") {
-    if (-not $Title -or -not $Prompt) { throw "-Title 和 -Prompt 必填" }
-    Write-Host "正在下发任务给 Jules..." -ForegroundColor Cyan
+    if (-not $Title -or -not $Prompt) { throw "-Title and -Prompt are required" }
+    Write-Host "Dispatching new task to Jules..." -ForegroundColor Cyan
     $res = New-JulesTask -TaskTitle $Title -TaskPrompt $Prompt -Branch $StartingBranch
-    Write-Host "任务下发成功！Session ID: $($res.name)" -ForegroundColor Green
+    Write-Host "Task successfully dispatched! Session ID: $($res.name)" -ForegroundColor Green
     $res | ConvertTo-Json -Depth 5
 } elseif ($Action -eq "feedback") {
-    if (-not $SessionId -or -not $Message) { throw "-SessionId 和 -Message 必填" }
-    Write-Host "正在给 Jules 追加指令..." -ForegroundColor Cyan
+    if (-not $SessionId -or -not $Message) { throw "-SessionId and -Message are required" }
+    Write-Host "Sending feedback to Jules..." -ForegroundColor Cyan
     $res = Send-JulesFeedback -TargetSessionId $SessionId -FeedbackMessage $Message
-    Write-Host "指令追加成功！" -ForegroundColor Green
+    Write-Host "Feedback sent successfully!" -ForegroundColor Green
     $res | ConvertTo-Json -Depth 5
 } elseif ($Action -eq "check-pr") {
-    if ($PrNumber -le 0) { throw "-PrNumber 必填" }
+    if ($PrNumber -le 0) { throw "-PrNumber is required" }
     Get-GitHubPrChecks -Number $PrNumber
 } elseif ($Action -eq "merge-pr") {
-    if ($PrNumber -le 0) { throw "-PrNumber 必填" }
+    if ($PrNumber -le 0) { throw "-PrNumber is required" }
     Merge-GitHubPr -Number $PrNumber -TitleText $CommitTitle
 } else {
-    Write-Host "Jules-Helper 用法:" -ForegroundColor Cyan
+    Write-Host "Usage:" -ForegroundColor Cyan
     Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action list-sources"
     Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action list"
-    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action new -Title <标题> -Prompt <提示词>"
-    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action feedback -SessionId <ID> -Message <消息>"
-    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action check-pr -PrNumber <PR号>"
-    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action merge-pr -PrNumber <PR号> -CommitTitle <信息>"
+    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action new -Title <title> -Prompt <prompt>"
+    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action feedback -SessionId <id> -Message <msg>"
+    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action check-pr -PrNumber <num>"
+    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\jules-helper.ps1 -Action merge-pr -PrNumber <num> -CommitTitle <msg>"
 }
