@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,12 +54,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBarDefaults
-import kotlinx.coroutines.withContext
-
 import com.mistakebook.R
 import com.mistakebook.di.AppContainer
 import com.mistakebook.ui.common.ApiKeyRequiredDialog
@@ -81,7 +81,7 @@ import kotlin.math.min
  * 触发重绘，之前这里是带 var 字段的可变对象，applyHandleDrag 原地改字段界面完全不动，
  * 表现就是「手柄看得见但拖不动、确认后裁出来的还是默认框」。
  */
-private data class CropRect(val left: Float, val top: Float, val right: Float, val bottom: Float) {
+internal data class CropRect(val left: Float, val top: Float, val right: Float, val bottom: Float) {
     fun width() = right - left
 
     fun height() = bottom - top
@@ -152,7 +152,7 @@ internal const val MASK_ROTATION_PERIOD = 4
  * 轴对齐矩形转 90° 之后**仍然是轴对齐的**，所以取四个角变换后的 min/max
  * 就是精确结果，不需要近似。
  */
-private fun CropRect.rotatedQuarters(quarters: Int): CropRect {
+internal fun CropRect.rotatedQuarters(quarters: Int): CropRect {
     val tl = rotateNormalized(left, top, quarters)
     val tr = rotateNormalized(right, top, quarters)
     val br = rotateNormalized(right, bottom, quarters)
@@ -394,326 +394,91 @@ fun CropScreen(
         return Offset(toScreenX(d.x), toScreenY(d.y))
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .onSizeChanged { viewport = it }
-        ) {
-            Image(
-                bitmap = displayBitmap.asImageBitmap(),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                // key 用 viewport + 显示位图：几何换算依赖这两者，且它们只在旋转/布局变化时变，
-                // 拖拽过程中不会重启手势检测器（若把 rect 放进 key，每次拖动都会重建检测器）。
-                .pointerInput(viewport, displayBitmap, maskMode) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            if (maskMode) {
-                                // 涂鸦：每一笔都是新笔画，落笔点同时补一个点，
-                                // 否则单点一下（没拖动）会画出长度为 0 的线段，什么也看不到。
-                                // 屏幕坐标 -> **原图**归一化坐标，笔迹自始至终存在原图坐标系。
-                                activeStroke = listOf(screenToBase(offset.x, offset.y))
-                            } else {
-                                activeHandle = pickHandle(
-                                    offset = offset,
-                                    // 裁剪框存的是原图坐标，命中测试必须在**显示朝向**下做
-                                    rect = rect.rotatedQuarters(rotationQuarter),
-                                    toScreenX = ::toScreenX,
-                                    toScreenY = ::toScreenY,
-                                    slop = touchSlop
-                                )
-                            }
-                        },
-                        onDragEnd = {
-                            if (maskMode) {
-                                if (activeStroke.isNotEmpty()) {
-                                    val committed = strokes + MaskStroke(activeStroke)
-                                    strokes = committed
-                                    activeStroke = emptyList()
-                                    scope.launch { persistSession() }
-                                }
-                            } else {
-                                activeHandle = Handle.NONE
-                                // 拖完就落盘：裁剪框是「上一步的成果」，不能只在离开页面时才存
-                                scope.launch { persistSession() }
-                            }
-                        },
-                        onDragCancel = {
-                            activeStroke = emptyList()
-                            activeHandle = Handle.NONE
-                        },
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-                            if (maskMode) {
-                                val point = screenToBase(change.position.x, change.position.y)
-                                val last = activeStroke.lastOrNull()
-                                // 过滤掉几乎没移动的点，否则一笔会塞进上百个点，重绘发烫。
-                                // 阈值按**显示尺寸**折算：笔迹存在原图坐标系，
-                                // 但「有没有动」是屏幕上的手感问题。
-                                val lastOnScreen = last?.let { baseToScreen(it) }
-                                if (lastOnScreen == null ||
-                                    abs(lastOnScreen.x - change.position.x) > 2f ||
-                                    abs(lastOnScreen.y - change.position.y) > 2f
-                                ) {
-                                    activeStroke = activeStroke + point
-                                }
-                            } else {
-                                val dx = dragAmount.x / imageSize.width
-                                val dy = dragAmount.y / imageSize.height
-                                // 拖拽在**显示朝向**下进行（手柄位置是用户看到的），
-                                // 算完再转回原图坐标存起来。
-                                // rotatedQuarters 是自反的：连转两次回到原点。
-                                val displayRect = draggedRect(
-                                    rect.rotatedQuarters(rotationQuarter),
-                                    activeHandle,
-                                    dx,
-                                    dy
-                                )
-                                // 必须产生新实例才能触发重绘
-                                rect = displayRect.rotatedQuarters(MASK_ROTATION_PERIOD - rotationQuarter)
-                            }
-                        }
-                    )
-                }
-        ) {
-            // 遮罩笔迹：先画，裁剪框压在上面，涂完仍能看到框在哪
-            if (maskMode) {
-                (strokes.map { it.points } + listOf(activeStroke))
-                    .filter { it.size >= 2 }
-                    .forEach { points ->
-                        for (i in 0 until points.size - 1) {
-                            // 笔迹存在原图坐标系，这里映射到显示朝向——
-                            // 与 [buildPreviewBitmap]/[saveCrop] 用的是同一个变换，
-                            // 所以「屏幕上画的」和「涂白在图上的」必然一致。
-                            drawLine(
-                                color = Color.White,
-                                start = baseToScreen(points[i]),
-                                end = baseToScreen(points[i + 1]),
-                                strokeWidth = brushWidthPx,
-                                cap = androidx.compose.ui.graphics.StrokeCap.Round
-                            )
-                        }
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.crop_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.crop_back))
                     }
-            }
-
-            // 裁剪框同样存在原图坐标系，显示时转到当前朝向
-            val displayRect = rect.rotatedQuarters(rotationQuarter)
-            val left = toScreenX(displayRect.left)
-            val top = toScreenY(displayRect.top)
-            val right = toScreenX(displayRect.right)
-            val bottom = toScreenY(displayRect.bottom)
-
-            // 涂鸦时只画一个淡淡的边框提示选区，不画压暗和手柄——
-            // 压暗 60% 会让用户看不清自己正要涂什么，手柄也会干扰落笔
-            val dim = Color.Black.copy(alpha = if (maskMode) 0f else 0.6f)
-            drawRect(dim, size = Size(size.width, top))                    // 上
-            drawRect(dim, topLeft = Offset(0f, bottom), size = Size(size.width, size.height - bottom)) // 下
-            drawRect(dim, topLeft = Offset(0f, top), size = Size(left, bottom - top))                   // 左
-            drawRect(dim, topLeft = Offset(right, top), size = Size(size.width - right, bottom - top))  // 右
-            if (!maskMode) {
-                // 网格
-                for (i in 1..2) {
-                    val x = left + (right - left) * i / 3f
-                    val y = top + (bottom - top) * i / 3f
-                    drawLine(Color.White.copy(alpha = 0.5f), Offset(x, top), Offset(x, bottom), 1f)
-                    drawLine(Color.White.copy(alpha = 0.5f), Offset(left, y), Offset(right, y), 1f)
-                }
-            }
-            // 边框
-            drawRect(
-                color = if (maskMode) Color.White.copy(alpha = 0.7f) else Color.White,
-                topLeft = Offset(left, top),
-                size = Size(right - left, bottom - top),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
-            )
-            // 8 个手柄
-            if (!maskMode) {
-                val handles = listOf(
-                    Offset(left, top), Offset(right, top), Offset(left, bottom), Offset(right, bottom),
-                    Offset((left + right) / 2, top), Offset((left + right) / 2, bottom),
-                    Offset(left, (top + bottom) / 2), Offset(right, (top + bottom) / 2)
-                )
-                handles.forEach { center ->
-                    drawCircle(
-                        color = Color.White,
-                        radius = 14f,
-                        center = center
-                    )
-                    drawCircle(
-                        color = Color(0xFF4F7DF3),
-                        radius = 10f,
-                        center = center
-                    )
-                }
-            }
-        }
-
-        // 工具栏
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.5f))
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            if (maskMode) {
-                Text(
-                    text = stringResource(R.string.crop_mask_hint),
-                    color = Color.White.copy(alpha = 0.85f),
-                    style = MaterialTheme.typography.labelSmall
-                )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    TextButton(onClick = {
-                        // 关键：正在画的那一笔要先 commit 再退出。
-                        // 直接 activeStroke = emptyList() 会把用户刚画的那一笔丢掉，
-                        // 表现为「我明明涂了，点完成就没了」。
-                        if (activeStroke.isNotEmpty()) {
-                            strokes = strokes + MaskStroke(activeStroke)
-                        }
-                        activeStroke = emptyList()
-                        maskMode = false
-                        scope.launch { persistSession() }
-                    }, modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.crop_mask_done), color = Color(0xFF7FB0FF))
-                    }
+                },
+                actions = {
                     TextButton(
                         onClick = {
-                            strokes = strokes.dropLast(1)
-                            scope.launch { persistSession() }
-                        },
-                        enabled = strokes.isNotEmpty(),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(stringResource(R.string.crop_mask_undo), color = Color.White)
-                    }
-                    TextButton(
-                        onClick = {
-                            strokes = emptyList()
-                            activeStroke = emptyList()
-                            scope.launch { persistSession() }
-                        },
-                        enabled = strokes.isNotEmpty(),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(stringResource(R.string.crop_mask_clear), color = Color.White)
-                    }
-                }
-            } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    TextButton(onClick = onBack) {
-                        Text(stringResource(R.string.action_cancel), color = Color.White)
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        TextButton(onClick = { maskMode = true }) {
-                            Text(
-                                text = stringResource(R.string.crop_mask),
-                                color = if (strokes.isEmpty()) Color.White else Color(0xFF7FB0FF)
-                            )
-                        }
-                        TextButton(onClick = {
-                            // 旋转现在只是一个整数加一。
-                            // 笔迹和裁剪框存在原图坐标系里，**不需要也不应该**跟着变换——
-                            // 旧实现在这里把笔迹做一次坐标变换，正是「一旋转涂鸦就变」的来源。
-                            rotationQuarter = (rotationQuarter + 1) % MASK_ROTATION_PERIOD
-                            // 裁剪框跟着图一起转（转 90° 仍是轴对齐矩形，min/max 即精确解），
-                            // 不再像以前那样直接重置为默认值——用户辛苦框好的区域不该被一次旋转抹掉。
-                            activeStroke = emptyList()
-                            activeHandle = Handle.NONE
-                            scope.launch { persistSession() }
-                        }) {
-                            Text(stringResource(R.string.crop_rotate), color = Color.White)
-                        }
-                        TextButton(onClick = {
-                            rect = CropRect.Default
-                            strokes = emptyList()
-                            activeStroke = emptyList()
-                            // 「重置」是显式清空，也要把清空结果存下来。
-                            // 注意**不重置 rotationQuarter**：转正是用户有意做的修正，
-                            // 「重置」针对的是框选和涂鸦，不是把照片转回原样。
-                            scope.launch { persistSession() }
-                        }) {
-                            Text(stringResource(R.string.crop_reset), color = Color.White)
-                        }
-                        // 关键：让用户直接看到**真正送进 MinerU 的那张图**。
-                        // 裁剪页画的是「原图 + 笔迹覆盖层」，识别吃的是「裁剪 + 涂白后的位图」，
-                        // 两者只要有一处坐标换算不对就对不上。
-                        // 与其让用户猜，不如把最终产物摊开给他看。
-                        TextButton(
-                            onClick = {
-                                scope.launch {
-                                    previewing = true
-                                    val preview = withContext(Dispatchers.IO) {
-                                        buildPreviewBitmap(
-                                            displayBitmap,
-                                            rect.rotatedQuarters(rotationQuarter),
-                                            strokes.map { it.rotated(rotationQuarter) },
-                                            brushWidthPx,
-                                            imageSize.width.toFloat()
-                                        )
-                                    }
-                                    previewBitmap = preview
-                                    previewing = false
-                                    if (preview == null) {
-                                        errorText = context.getString(R.string.crop_too_small)
-                                    }
-                                }
-                            },
-                            enabled = !previewing
-                        ) {
-                            Text(
-                                text = stringResource(R.string.crop_preview),
-                                color = Color.White
-                            )
-                        }
-                    }
-                    TextButton(onClick = {
-                        scope.launch {
-                            val committed = strokes
-                            // 转到显示朝向后再裁：这样裁剪框与笔迹的数值
-                            // 和用户眼睛看到的完全对应，也和屏幕上的绘制走同一条路径。
-                            val cropRect = rect.rotatedQuarters(rotationQuarter)
-                            val cropStrokes = committed.map { it.rotated(rotationQuarter) }
-                            // 重裁剪：只存图回填，不提交识别、也不需要 API Key
-                            if (recropOnly) {
-                                val saved = withContext(Dispatchers.IO) {
-                                    saveCrop(
-                                        displayBitmap, cropRect, container, cropStrokes,
-                                        brushWidthPx, imageSize.width.toFloat()
+                            scope.launch {
+                                previewing = true
+                                val preview = withContext(Dispatchers.IO) {
+                                    buildPreviewBitmap(
+                                        displayBitmap,
+                                        rect.rotatedQuarters(rotationQuarter),
+                                        strokes.map { it.rotated(rotationQuarter) },
+                                        brushWidthPx,
+                                        imageSize.width.toFloat()
                                     )
                                 }
-                                if (saved != null) {
-                                    // 已生成新图，旧的裁剪会话没有意义了
-                                    sessionStore.clear(imagePath)
-                                    onRecropped(saved.absolutePath)
-                                } else {
+                                previewBitmap = preview
+                                previewing = false
+                                if (preview == null) {
                                     errorText = context.getString(R.string.crop_too_small)
                                 }
-                                return@launch
                             }
-                            val snapshot = container.settingsStore.snapshotNow()
-                            if (!snapshot.mineruConfigured || !snapshot.llmConfigured) {
-                                mineruMissing = !snapshot.mineruConfigured
-                                llmMissing = !snapshot.llmConfigured
-                                showKeyGate = true
-                                return@launch
-                            }
-
+                        },
+                        enabled = !previewing
+                    ) {
+                        Text(
+                            text = stringResource(R.string.crop_preview),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Black.copy(alpha = 0.5f),
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
+            )
+        },
+        bottomBar = {
+            CropToolbar(
+                maskMode = maskMode,
+                onMaskModeChange = { newMode ->
+                    if (!newMode && activeStroke.isNotEmpty()) {
+                        strokes = strokes + MaskStroke(activeStroke)
+                        activeStroke = emptyList()
+                        scope.launch { persistSession() }
+                    }
+                    maskMode = newMode
+                },
+                hasStrokes = strokes.isNotEmpty(),
+                onUndo = {
+                    strokes = strokes.dropLast(1)
+                    scope.launch { persistSession() }
+                },
+                onClear = {
+                    strokes = emptyList()
+                    activeStroke = emptyList()
+                    scope.launch { persistSession() }
+                },
+                onRotate = {
+                    rotationQuarter = (rotationQuarter + 1) % MASK_ROTATION_PERIOD
+                    activeStroke = emptyList()
+                    activeHandle = Handle.NONE
+                    scope.launch { persistSession() }
+                },
+                onReset = {
+                    rect = CropRect.Default
+                    strokes = emptyList()
+                    activeStroke = emptyList()
+                    scope.launch { persistSession() }
+                },
+                onConfirm = {
+                    scope.launch {
+                        val committed = strokes
+                        val cropRect = rect.rotatedQuarters(rotationQuarter)
+                        val cropStrokes = committed.map { it.rotated(rotationQuarter) }
+                        if (recropOnly) {
                             val saved = withContext(Dispatchers.IO) {
                                 saveCrop(
                                     displayBitmap, cropRect, container, cropStrokes,
@@ -721,79 +486,173 @@ fun CropScreen(
                                 )
                             }
                             if (saved != null) {
-                                // 分组标题按来源区分：相册进来的不能标成「拍照识别」，
-                                // 进度页按组浏览时这个标题是用户的唯一线索
-                                val title = if (container.cropSourceIsGallery) {
-                                    "相册导入"
-                                } else {
-                                    "拍照识别"
-                                }
-                                container.cropSourceIsGallery = false
-                                val ids = container.recognitionSubmitter.submitImages(listOf(saved), title)
-                                onConfirmed(ids)
+                                sessionStore.clear(imagePath)
+                                onRecropped(saved.absolutePath)
                             } else {
                                 errorText = context.getString(R.string.crop_too_small)
                             }
+                            return@launch
                         }
-                    }) {
-                        Text(stringResource(R.string.crop_confirm), color = Color(0xFF7FB0FF))
+                        val snapshot = container.settingsStore.snapshotNow()
+                        if (!snapshot.mineruConfigured || !snapshot.llmConfigured) {
+                            mineruMissing = !snapshot.mineruConfigured
+                            llmMissing = !snapshot.llmConfigured
+                            showKeyGate = true
+                            return@launch
+                        }
+
+                        val saved = withContext(Dispatchers.IO) {
+                            saveCrop(
+                                displayBitmap, cropRect, container, cropStrokes,
+                                brushWidthPx, imageSize.width.toFloat()
+                            )
+                        }
+                        if (saved != null) {
+                            val title = if (container.cropSourceIsGallery) {
+                                "相册导入"
+                            } else {
+                                "拍照识别"
+                            }
+                            container.cropSourceIsGallery = false
+                            val ids = container.recognitionSubmitter.submitImages(listOf(saved), title)
+                            onConfirmed(ids)
+                        } else {
+                            errorText = context.getString(R.string.crop_too_small)
+                        }
                     }
                 }
-            }
-        }
-
-        if (showKeyGate) {
-            ApiKeyRequiredDialog(
-                mineruMissing = mineruMissing,
-                llmMissing = llmMissing,
-                onOpenSettings = onOpenSettings,
-                onManualEntry = onManualEntry,
-                onDismiss = { showKeyGate = false }
             )
-        }
-
-        if (errorText != null) {
-            Text(
-                text = errorText.orEmpty(),
-                color = Color.White,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 64.dp)
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(12.dp)
-            )
-        }
-
-        // 识别图预览：用户能亲眼确认「送进 AI 的就是这张」
-        val preview = previewBitmap
-        if (preview != null) {
-            androidx.compose.material3.AlertDialog(
-                onDismissRequest = { previewBitmap = null },
-                title = { Text(stringResource(R.string.crop_preview_title)) },
-                text = {
-                    Text(
-                        text = stringResource(R.string.crop_preview_hint),
-                        style = androidx.compose.material3.MaterialTheme.typography.labelSmall
-                    )
-                    Image(
-                        bitmap = preview.asImageBitmap(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 420.dp)
-                            .background(Color.White)
-                            .padding(top = 8.dp)
+        },
+        containerColor = Color.Black
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            CropOverlay(
+                displayBitmap = displayBitmap.asImageBitmap(),
+                rawBitmap = base,
+                viewport = viewport,
+                onViewportChange = { viewport = it },
+                maskMode = maskMode,
+                strokes = strokes,
+                activeStroke = activeStroke,
+                onActiveStrokeChange = { activeStroke = it },
+                onStrokeCommit = {
+                    if (activeStroke.isNotEmpty()) {
+                        strokes = strokes + MaskStroke(activeStroke)
+                        activeStroke = emptyList()
+                        scope.launch { persistSession() }
+                    }
+                },
+                rect = rect,
+                rotationQuarter = rotationQuarter,
+                onRectChange = { newRect ->
+                    rect = newRect
+                    scope.launch { persistSession() }
+                },
+                onHandleDragStart = { offset ->
+                    activeHandle = pickHandle(
+                        offset = offset,
+                        rect = rect.rotatedQuarters(rotationQuarter),
+                        toScreenX = ::toScreenX,
+                        toScreenY = ::toScreenY,
+                        slop = touchSlop
                     )
                 },
-                confirmButton = {
-                    androidx.compose.material3.TextButton(onClick = { previewBitmap = null }) {
-                        Text(stringResource(R.string.action_confirm))
-                    }
-                }
+                onHandleDragEnd = {
+                    activeHandle = Handle.NONE
+                    scope.launch { persistSession() }
+                },
+                onHandleDragCancel = {
+                    activeHandle = Handle.NONE
+                },
+                onHandleDrag = { dragAmount ->
+                    val dx = dragAmount.x / imageSize.width
+                    val dy = dragAmount.y / imageSize.height
+                    val displayRect = draggedRect(
+                        rect.rotatedQuarters(rotationQuarter),
+                        activeHandle,
+                        dx,
+                        dy
+                    )
+                    rect = displayRect.rotatedQuarters(MASK_ROTATION_PERIOD - rotationQuarter)
+                },
+                imageLeft = imageLeft,
+                imageTop = imageTop,
+                imageSize = imageSize,
+                baseToScreen = ::baseToScreen,
+                screenToBase = ::screenToBase,
+                brushWidthPx = brushWidthPx
             )
+
+            if (showKeyGate) {
+                ApiKeyRequiredDialog(
+                    mineruMissing = mineruMissing,
+                    llmMissing = llmMissing,
+                    onOpenSettings = onOpenSettings,
+                    onManualEntry = onManualEntry,
+                    onDismiss = { showKeyGate = false }
+                )
+            }
+
+            if (errorText != null) {
+                Text(
+                    text = errorText.orEmpty(),
+                    color = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 16.dp)
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(12.dp)
+                )
+            }
         }
     }
+
+    val preview = previewBitmap
+    if (preview != null) {
+        var scale by remember { mutableStateOf(1f) }
+        var offset by remember { mutableStateOf(Offset.Zero) }
+        val transformableState = rememberTransformableState { zoomChange, offsetChange, _ ->
+            scale = (scale * zoomChange).coerceIn(1f, 5f)
+            // 限制在安全范围内（避免原图像素过小导致无法平移）
+            val maxX = (scale - 1) * 1500f
+            val maxY = (scale - 1) * 2000f
+            offset = Offset(
+                x = (offset.x + offsetChange.x).coerceIn(-maxX, maxX),
+                y = (offset.y + offsetChange.y).coerceIn(-maxY, maxY)
+            )
+        }
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { previewBitmap = null },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+                Image(
+                    bitmap = preview.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer(
+                            scaleX = scale,
+                            scaleY = scale,
+                            translationX = offset.x,
+                            translationY = offset.y
+                        )
+                        .transformable(state = transformableState)
+                )
+                TopAppBar(
+                    title = { Text(stringResource(R.string.crop_preview_title), color = Color.White) },
+                    navigationIcon = {
+                        IconButton(onClick = { previewBitmap = null }) {
+                            Icon(androidx.compose.material.icons.Icons.Filled.Close, contentDescription = "Close", tint = Color.White)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black.copy(alpha = 0.5f))
+                )
+            }
+        }
+    }
+
 }
 
 private fun pickHandle(
