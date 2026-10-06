@@ -158,4 +158,36 @@ class VocabRepositoryTest {
             )
         }
     }
+
+    @Test
+    fun `buildSenseQuestion with single-sense word gracefully falls back to multi-sense word`() = runBlocking {
+        // abandon 仅有 1 个义项，buildSenseQuestion 应自动挑选多义词（如 desert 或 benefit）
+        val targetSingleSense = sampleWords.first { it.word == "abandon" }
+        val q = repo.buildSenseQuestion(targetSingleSense)
+        assertNotNull(q)
+        assertTrue(repo.splitSenses(q!!.word.meaning).size >= 2)
+        assertEquals(4, q.options.size)
+        assertTrue(q.options.any { it.word == q.word.word })
+    }
+
+    @Test
+    fun `buildSenseQuestion returns null safely when repository has no multi-sense words`() = runBlocking {
+        val singleSenseOnlyWords = listOf(
+            Word(word = "cat", meaning = "n. 猫", pos = "n.", full = "n. 猫"),
+            Word(word = "dog", meaning = "n. 狗", pos = "n.", full = "n. 狗"),
+            Word(word = "bird", meaning = "n. 鸟", pos = "n.", full = "n. 鸟"),
+            Word(word = "fish", meaning = "n. 鱼", pos = "n.", full = "n. 鱼")
+        )
+        val singleRepo = VocabRepository(words = singleSenseOnlyWords)
+        val q = singleRepo.buildSenseQuestion(null)
+        org.junit.Assert.assertNull("没有多义词时应安全返回 null 而不抛出异常", q)
+    }
+
+    @Test
+    fun `search empty query supports sequence take limit without full materialization`() = runBlocking {
+        val all = repo.search("")
+        assertEquals(sampleWords.size, all.size)
+        val chunked = all.asSequence().take(3).toList()
+        assertEquals(3, chunked.size)
+    }
 }

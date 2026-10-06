@@ -1,5 +1,6 @@
 package com.mistakebook.wordbook.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -26,10 +27,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
@@ -130,6 +131,13 @@ fun WordbookScreen(
                 }
                 val pagerState = rememberPagerState(initialPage = state.currentTab.ordinal) { tabs.size }
                 val scope = rememberCoroutineScope()
+
+                // 子 Tab 导航拦截：当用户处于「错词本」、「词库检索」或「学习统计」子页时，按返回键退回「学习刷题」主 Tab
+                BackHandler(enabled = pagerState.currentPage != 0) {
+                    scope.launch {
+                        pagerState.animateScrollToPage(0)
+                    }
+                }
 
                 // 外部变更 tab 时驱动 pager 滚动
                 LaunchedEffect(state.currentTab) {
@@ -439,7 +447,7 @@ private fun StudyView(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.MenuBook,
+                                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
                                         contentDescription = null,
                                         modifier = Modifier.size(14.dp),
                                         tint = if (isDark) Color(0xFF91A7FF) else PaperPrimary

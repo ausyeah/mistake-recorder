@@ -3,10 +3,13 @@ package com.mistakebook.wordbook.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mistakebook.di.AppContainer
+import com.mistakebook.wordbook.data.SenseQuestion
 import com.mistakebook.wordbook.data.Word
 import com.mistakebook.wordbook.data.WordProgress
 import com.mistakebook.wordbook.data.WordStudyLog
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,6 +19,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
 
 class WordbookViewModel(private val container: AppContainer) : ViewModel() {
@@ -34,6 +38,12 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
     // 最近刷过的单词滑动窗口（冷却窗口，严格防止单词连着连续出现）
     private val recentWords = ArrayDeque<String>()
     private val COOL_DOWN_WINDOW = 8
+
+    // 快速连击与防重入原子状态锁
+    private val isActionInProgress = AtomicBoolean(false)
+    private val isTogglingMaster = AtomicBoolean(false)
+    private var nextQuestionJob: Job? = null
+    private var librarySearchJob: Job? = null
 
     private fun recordRecentWord(wordStr: String) {
         recentWords.addLast(wordStr)
@@ -107,81 +117,118 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
     // =========================================================================
 
     fun prepareNextQuestion() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            val nextWord = pickNextWord()
-            if (nextWord == null) {
+        if (_uiState.value.isLoading && nextQuestionJob?.isActive == true) return
+        nextQuestionJob?.cancel()
+        nextQuestionJob = viewModelScope.launch {
+            loadNextQuestionInternal()
+        }
+    }
+
+    private suspend fun loadNextQuestionInternal() {
+        _uiState.update { it.copy(isLoading = true) }
+        val nextWord = pickNextWord()
+        if (nextWord == null) {
+            _uiState.update {
+                it.copy(
+                    currentWord = null,
+                    currentProgress = null,
+                    currentSense = null,
+                    options = emptyList(),
+                    isAnswered = false,
+                    selectedOptionIndex = null,
+                    isCardRevealed = false,
+                    isLoading = false
+                )
+            }
+            return
+        }
+
+        if (_uiState.value.studyMode == StudyMode.SENSE) {
+            var senseQ: SenseQuestion? = null
+            var candidate: Word? = nextWord
+            var retryCount = 0
+            val maxRetries = 10
+
+            // 循环重选重试，确保 SENSE 模式下必定构建出有效义项题
+            while (senseQ == null && retryCount < maxRetries && candidate != null) {
+                senseQ = vocabRepo.buildSenseQuestion(candidate)
+                if (senseQ != null) break
+                retryCount++
+                candidate = pickNextWord()
+            }
+
+            // 若候选词多次尝试未成，进行全局随机多义词兜底
+            if (senseQ == null) {
+                senseQ = vocabRepo.buildSenseQuestion(null)
+            }
+
+            if (senseQ != null) {
+                val progress = dao.getProgress(senseQ.word.word) ?: WordProgress(word = senseQ.word.word)
+                val labels = listOf("A", "B", "C", "D")
+                val options = senseQ.options.mapIndexed { index, candidateWord ->
+                    QuizOption(
+                        label = labels.getOrElse(index) { "?" },
+                        word = candidateWord,
+                        isCorrect = candidateWord.word == senseQ.word.word,
+                        isSelected = false
+                    )
+                }
+                _uiState.update {
+                    it.copy(
+                        currentWord = senseQ.word,
+                        currentProgress = progress,
+                        currentSense = senseQ.sense,
+                        options = options,
+                        selectedOptionIndex = null,
+                        isAnswered = false,
+                        isCardRevealed = false,
+                        isLoading = false
+                    )
+                }
+            } else {
+                // 极端兜底：绝不降级四选一穿帮破坏题意，呈现清晰空状态
                 _uiState.update {
                     it.copy(
                         currentWord = null,
                         currentProgress = null,
                         currentSense = null,
                         options = emptyList(),
-                        isAnswered = false,
                         selectedOptionIndex = null,
+                        isAnswered = false,
                         isCardRevealed = false,
                         isLoading = false
                     )
                 }
-                return@launch
             }
+            return
+        }
 
-            if (_uiState.value.studyMode == StudyMode.SENSE) {
-                val senseQ = vocabRepo.buildSenseQuestion(nextWord)
-                if (senseQ != null) {
-                    val progress = dao.getProgress(senseQ.word.word) ?: WordProgress(word = senseQ.word.word)
-                    val labels = listOf("A", "B", "C", "D")
-                    val options = senseQ.options.mapIndexed { index, candidate ->
-                        QuizOption(
-                            label = labels.getOrElse(index) { "?" },
-                            word = candidate,
-                            isCorrect = candidate.word == senseQ.word.word,
-                            isSelected = false
-                        )
-                    }
-                    _uiState.update {
-                        it.copy(
-                            currentWord = senseQ.word,
-                            currentProgress = progress,
-                            currentSense = senseQ.sense,
-                            options = options,
-                            selectedOptionIndex = null,
-                            isAnswered = false,
-                            isCardRevealed = false,
-                            isLoading = false
-                        )
-                    }
-                    return@launch
-                }
-            }
+        val progress = dao.getProgress(nextWord.word) ?: WordProgress(word = nextWord.word)
+        val distractors = vocabRepo.pickDistractors(nextWord, 3)
 
-            val progress = dao.getProgress(nextWord.word) ?: WordProgress(word = nextWord.word)
-            val distractors = vocabRepo.pickDistractors(nextWord, 3)
+        // 构造四选一并打乱
+        val labels = listOf("A", "B", "C", "D")
+        val allCandidates = (listOf(nextWord) + distractors).shuffled(Random)
+        val options = allCandidates.mapIndexed { index, candidateWord ->
+            QuizOption(
+                label = labels.getOrElse(index) { "?" },
+                word = candidateWord,
+                isCorrect = candidateWord.word == nextWord.word,
+                isSelected = false
+            )
+        }
 
-            // 构造四选一并打乱
-            val labels = listOf("A", "B", "C", "D")
-            val allCandidates = (listOf(nextWord) + distractors).shuffled(Random)
-            val options = allCandidates.mapIndexed { index, candidate ->
-                QuizOption(
-                    label = labels.getOrElse(index) { "?" },
-                    word = candidate,
-                    isCorrect = candidate.word == nextWord.word,
-                    isSelected = false
-                )
-            }
-
-            _uiState.update {
-                it.copy(
-                    currentWord = nextWord,
-                    currentProgress = progress,
-                    currentSense = null,
-                    options = options,
-                    selectedOptionIndex = null,
-                    isAnswered = false,
-                    isCardRevealed = false,
-                    isLoading = false
-                )
-            }
+        _uiState.update {
+            it.copy(
+                currentWord = nextWord,
+                currentProgress = progress,
+                currentSense = null,
+                options = options,
+                selectedOptionIndex = null,
+                isAnswered = false,
+                isCardRevealed = false,
+                isLoading = false
+            )
         }
     }
 
@@ -250,12 +297,13 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     /**
-     * 四选一模式选择选项。
+     * 四选一模式选择选项（带严格防连击与作答状态原子锁）。
      */
     fun selectOption(index: Int) {
         val state = _uiState.value
-        if (state.isAnswered || index !in state.options.indices) return
+        if (state.isLoading || state.isAnswered || index !in state.options.indices || isActionInProgress.get()) return
         val current = state.currentWord ?: return
+        if (!isActionInProgress.compareAndSet(false, true)) return
 
         sessionAnswerCount++
         recordRecentWord(current.word)
@@ -275,56 +323,67 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
         }
 
         viewModelScope.launch(Dispatchers.IO) {
-            val now = System.currentTimeMillis()
-            val oldProgress = dao.getProgress(current.word) ?: WordProgress(word = current.word)
+            try {
+                val now = System.currentTimeMillis()
+                val oldProgress = dao.getProgress(current.word) ?: WordProgress(word = current.word)
 
-            val newProgress = if (isCorrect) {
-                val newReps = oldProgress.reps + 1
-                // 错题在间隔复习中答对 1 次即可毕业移出错词本（保留曾错标记），避免反复惩罚
-                val outOfWrongBook = oldProgress.isWrongBook && newReps >= 1
-                oldProgress.copy(
-                    level = maxOf(oldProgress.level, 2),
-                    reps = newReps,
-                    correctCount = oldProgress.correctCount + 1,
-                    isWrongBook = if (outOfWrongBook) false else oldProgress.isWrongBook,
-                    lastAnsweredAt = now,
-                    updatedAt = now
+                val newProgress = if (isCorrect) {
+                    val newReps = oldProgress.reps + 1
+                    // 错题在间隔复习中答对 1 次即可毕业移出错词本（保留曾错标记），避免反复惩罚
+                    val outOfWrongBook = oldProgress.isWrongBook && newReps >= 1
+                    oldProgress.copy(
+                        level = maxOf(oldProgress.level, 2),
+                        reps = newReps,
+                        correctCount = oldProgress.correctCount + 1,
+                        isWrongBook = if (outOfWrongBook) false else oldProgress.isWrongBook,
+                        lastAnsweredAt = now,
+                        updatedAt = now
+                    )
+                } else {
+                    // 答错惩罚：进入错题本，归零连对，并安排 8 题后重现强化
+                    deferQueue.add(DeferItem(current, sessionAnswerCount + 8))
+                    oldProgress.copy(
+                        level = 0,
+                        reps = 0,
+                        lapses = oldProgress.lapses + 1,
+                        wrongCount = oldProgress.wrongCount + 1,
+                        isWrongBook = true,
+                        everWrong = true,
+                        lastAnsweredAt = now,
+                        updatedAt = now
+                    )
+                }
+
+                dao.upsertProgress(newProgress)
+                dao.insertStudyLog(
+                    WordStudyLog(
+                        word = current.word,
+                        isCorrect = isCorrect,
+                        studyMode = if (state.studyMode == StudyMode.SENSE) "sense" else "quiz",
+                        answeredAt = now
+                    )
                 )
-            } else {
-                // 答错惩罚：进入错题本，归零连对，并安排 8 题后重现强化
-                deferQueue.add(DeferItem(current, sessionAnswerCount + 8))
-                oldProgress.copy(
-                    level = 0,
-                    reps = 0,
-                    lapses = oldProgress.lapses + 1,
-                    wrongCount = oldProgress.wrongCount + 1,
-                    isWrongBook = true,
-                    everWrong = true,
-                    lastAnsweredAt = now,
-                    updatedAt = now
-                )
+
+                _uiState.update { it.copy(currentProgress = newProgress) }
+            } finally {
+                if (!isCorrect) {
+                    // 答错后留在当前界面展示解析卡片，释放锁让用户可以点击「下一题」
+                    isActionInProgress.set(false)
+                }
             }
-
-            dao.upsertProgress(newProgress)
-            dao.insertStudyLog(
-                WordStudyLog(
-                    word = current.word,
-                    isCorrect = isCorrect,
-                    studyMode = if (state.studyMode == StudyMode.SENSE) "sense" else "quiz",
-                    answeredAt = now
-                )
-            )
-
-            _uiState.update { it.copy(currentProgress = newProgress) }
         }
 
         // 选对自动进入下一题：380ms 极短延迟（视觉保留绿标确认感，节奏紧凑跟手）
         if (isCorrect) {
             viewModelScope.launch {
-                kotlinx.coroutines.delay(380L)
-                val s = _uiState.value
-                if (s.isAnswered && s.currentWord?.word == current.word && (s.studyMode == StudyMode.QUIZ || s.studyMode == StudyMode.SENSE)) {
-                    prepareNextQuestion()
+                try {
+                    delay(380L)
+                    val s = _uiState.value
+                    if (s.isAnswered && s.currentWord?.word == current.word && (s.studyMode == StudyMode.QUIZ || s.studyMode == StudyMode.SENSE)) {
+                        loadNextQuestionInternal()
+                    }
+                } finally {
+                    isActionInProgress.set(false)
                 }
             }
         }
@@ -338,103 +397,116 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     /**
-     * 卡片模式评分打分：
+     * 卡片模式评分打分（严格防狂点重入，杜绝重复写入 Room 与竞争跳题）：
      * 0: 遗忘 (Bad)
      * 1: 模糊 (Fuzzy)
      * 2: 认识 (Good)
      * 3: 熟练 (Master)
      */
     fun rateCard(rating: Int) {
-        val current = _uiState.value.currentWord ?: return
+        val state = _uiState.value
+        if (state.isLoading || isActionInProgress.get()) return
+        val current = state.currentWord ?: return
+        if (!isActionInProgress.compareAndSet(false, true)) return
+
         sessionAnswerCount++
         recordRecentWord(current.word)
 
         viewModelScope.launch(Dispatchers.IO) {
-            val now = System.currentTimeMillis()
-            val old = dao.getProgress(current.word) ?: WordProgress(word = current.word)
+            try {
+                val now = System.currentTimeMillis()
+                val old = dao.getProgress(current.word) ?: WordProgress(word = current.word)
 
-            val updated = when (rating) {
-                0 -> {
-                    deferQueue.add(DeferItem(current, sessionAnswerCount + 8))
-                    old.copy(
-                        level = 0,
-                        reps = 0,
-                        lapses = old.lapses + 1,
-                        wrongCount = old.wrongCount + 1,
-                        isWrongBook = true,
-                        everWrong = true,
-                        lastAnsweredAt = now,
-                        updatedAt = now
-                    )
+                val updated = when (rating) {
+                    0 -> {
+                        deferQueue.add(DeferItem(current, sessionAnswerCount + 8))
+                        old.copy(
+                            level = 0,
+                            reps = 0,
+                            lapses = old.lapses + 1,
+                            wrongCount = old.wrongCount + 1,
+                            isWrongBook = true,
+                            everWrong = true,
+                            lastAnsweredAt = now,
+                            updatedAt = now
+                        )
+                    }
+                    1 -> {
+                        old.copy(
+                            level = 1,
+                            reps = 0,
+                            correctCount = old.correctCount + 1,
+                            lastAnsweredAt = now,
+                            updatedAt = now
+                        )
+                    }
+                    2 -> {
+                        val newReps = old.reps + 1
+                        val outOfWrongBook = old.isWrongBook && newReps >= 1
+                        old.copy(
+                            level = 2,
+                            reps = newReps,
+                            correctCount = old.correctCount + 1,
+                            isWrongBook = if (outOfWrongBook) false else old.isWrongBook,
+                            lastAnsweredAt = now,
+                            updatedAt = now
+                        )
+                    }
+                    else -> {
+                        old.copy(
+                            level = 3,
+                            reps = old.reps + 1,
+                            correctCount = old.correctCount + 1,
+                            isMastered = true,
+                            isWrongBook = false,
+                            lastAnsweredAt = now,
+                            updatedAt = now
+                        )
+                    }
                 }
-                1 -> {
-                    old.copy(
-                        level = 1,
-                        reps = 0,
-                        correctCount = old.correctCount + 1,
-                        lastAnsweredAt = now,
-                        updatedAt = now
-                    )
-                }
-                2 -> {
-                    val newReps = old.reps + 1
-                    val outOfWrongBook = old.isWrongBook && newReps >= 1
-                    old.copy(
-                        level = 2,
-                        reps = newReps,
-                        correctCount = old.correctCount + 1,
-                        isWrongBook = if (outOfWrongBook) false else old.isWrongBook,
-                        lastAnsweredAt = now,
-                        updatedAt = now
-                    )
-                }
-                else -> {
-                    old.copy(
-                        level = 3,
-                        reps = old.reps + 1,
-                        correctCount = old.correctCount + 1,
-                        isMastered = true,
-                        isWrongBook = false,
-                        lastAnsweredAt = now,
-                        updatedAt = now
-                    )
-                }
-            }
 
-            dao.upsertProgress(updated)
-            dao.insertStudyLog(
-                WordStudyLog(
-                    word = current.word,
-                    isCorrect = rating >= 2,
-                    studyMode = "card",
-                    answeredAt = now
+                dao.upsertProgress(updated)
+                dao.insertStudyLog(
+                    WordStudyLog(
+                        word = current.word,
+                        isCorrect = rating >= 2,
+                        studyMode = "card",
+                        answeredAt = now
+                    )
                 )
-            )
 
-            prepareNextQuestion()
+                loadNextQuestionInternal()
+            } finally {
+                isActionInProgress.set(false)
+            }
         }
     }
 
     /**
-     * 一键标记/取消熟词（☆）。
+     * 一键标记/取消熟词（☆，带防抖与原子并发控制）。
      */
     fun toggleMasterCurrentWord() {
         val current = _uiState.value.currentWord ?: return
+        if (!isTogglingMaster.compareAndSet(false, true)) return
         viewModelScope.launch(Dispatchers.IO) {
-            val old = dao.getProgress(current.word) ?: WordProgress(word = current.word)
-            val nextMastered = !old.isMastered
-            val updated = old.copy(
-                isMastered = nextMastered,
-                level = if (nextMastered) 3 else old.level,
-                isWrongBook = if (nextMastered) false else old.isWrongBook,
-                updatedAt = System.currentTimeMillis()
-            )
-            dao.upsertProgress(updated)
-            _uiState.update {
-                it.copy(
-                    currentProgress = updated,
-                    snackbarMessage = if (nextMastered) "已标记为熟词，后续不再安排练习" else "已取消熟词"
+            try {
+                val old = dao.getProgress(current.word) ?: WordProgress(word = current.word)
+                val nextMastered = !old.isMastered
+                val updated = old.copy(
+                    isMastered = nextMastered,
+                    level = if (nextMastered) 3 else old.level,
+                    isWrongBook = if (nextMastered) false else old.isWrongBook,
+                    updatedAt = System.currentTimeMillis()
                 )
+                dao.upsertProgress(updated)
+                _uiState.update {
+                    it.copy(
+                        currentProgress = updated,
+                        snackbarMessage = if (nextMastered) "已标记为熟词，后续不再安排练习" else "已取消熟词"
+                    )
+                }
+            } finally {
+                isTogglingMaster.set(false)
             }
         }
     }
@@ -475,30 +547,48 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setLibraryKeyword(keyword: String) {
         _uiState.update { it.copy(libraryKeyword = keyword) }
-        refreshLibraryList()
+        triggerLibrarySearch(debounceMs = 200L)
     }
 
     fun setLibraryFilterLevel(level: Int?) {
         _uiState.update { it.copy(libraryFilterLevel = level) }
-        refreshLibraryList()
+        triggerLibrarySearch(debounceMs = 0L)
     }
 
-    private fun refreshLibraryList() {
-        viewModelScope.launch(Dispatchers.IO) {
+    fun refreshLibraryList() {
+        triggerLibrarySearch(debounceMs = 0L)
+    }
+
+    private fun triggerLibrarySearch(debounceMs: Long) {
+        librarySearchJob?.cancel()
+        librarySearchJob = viewModelScope.launch(Dispatchers.IO) {
+            if (debounceMs > 0) {
+                delay(debounceMs)
+            }
             val kw = _uiState.value.libraryKeyword
             val filterLv = _uiState.value.libraryFilterLevel
             val matchedWords = vocabRepo.search(kw)
             val allProgress = dao.observeAllProgress().first().associateBy { it.word }
 
-            val filtered = matchedWords.mapNotNull { w ->
-                val p = allProgress[w.word]
-                val currentLevel = p?.level ?: 0
-                if (filterLv == null || currentLevel == filterLv) {
-                    w to p
-                } else null
+            val limit = 100
+            val filtered = if (filterLv == null && kw.isBlank()) {
+                // 搜索框为空且未筛选等级时，极速懒截取前 100 词，避免遍历全量 4356 词
+                matchedWords.take(limit).map { w -> w to allProgress[w.word] }
+            } else {
+                // 配合 Sequence 惰性流截取，满足 limit 后立即终止遍历，杜绝内存开销与卡顿
+                matchedWords.asSequence()
+                    .mapNotNull { w ->
+                        val p = allProgress[w.word]
+                        val currentLevel = p?.level ?: 0
+                        if (filterLv == null || currentLevel == filterLv) {
+                            w to p
+                        } else null
+                    }
+                    .take(limit)
+                    .toList()
             }
 
-            _uiState.update { it.copy(libraryWords = filtered.take(150)) }
+            _uiState.update { it.copy(libraryWords = filtered) }
         }
     }
 

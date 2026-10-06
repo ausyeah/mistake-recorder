@@ -220,3 +220,21 @@
 3. **单词书纸质化高级美感重构 ([WordbookScreen.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/wordbook/ui/WordbookScreen.kt))**：
    - 顶部统计条重构为 3 个色彩柔和、微圆角（12.dp）的雅致统计胶囊（今日已学 / 待复习错词 / 已掌握），视觉呼吸感显著提升；
    - 移除 Tab 栏生硬分割线，增加卡片微阴影与 20.dp 圆润导角，大幅提升视觉精致度。
+
+## 返回键手势多级导航闭环与并发状态机加固 (2024-10)
+
+### 背景与痛点
+1. **返回键冒泡退出**：原先处于背单词页或单词书子 Tab（错词/词库/统计）时，按返回键直接关闭应用；
+2. **义项辨析题目穿帮**：处于义项模式但若针对目标词构建 Sense 题失败，原逻辑回退到常规单选，导致题干显示义项而选项是常规释义，题意错位；
+3. **词库大列表性能**：4356 词库全量检索与关联缺乏防抖，连续输入引起并发覆盖；
+4. **答题并发竞争**：快速点击选项或打分未加防重入锁，容易触发跳题或重复记录。
+
+### 决策内容
+1. **多级 BackHandler 嵌套导航 ([MainPortalScreen.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/ui/portal/MainPortalScreen.kt), [WordbookScreen.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/wordbook/ui/WordbookScreen.kt))**：
+   - 形成 `子Tab (1/2/3) -> 单词书主Tab (0) -> 错题本首页 (0) -> 退出应用` 的平滑回退链路；
+2. **义项辨析 10 次多义词轮转与全局保底 ([WordbookViewModel.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/wordbook/ui/WordbookViewModel.kt))**：
+   - 确保 SENSE 模式必定构建出合规的多义词题，绝不向下穿透至常规单选；无题时安全空状态兜底；
+3. **词库检索 200ms 防抖与 Sequence 惰性懒截取**：
+   - 空搜索时仅懒截取前 100 词，满足后短路终止，大幅降低内存分配；
+4. **AtomicBoolean 原子状态锁与 Job 协同**：
+   - `selectOption` 与 `rateCard` 使用 CAS 原子保护，防止极速连击导致并发写入与跳题。

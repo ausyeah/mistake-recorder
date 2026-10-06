@@ -1,5 +1,6 @@
 package com.mistakebook.ui.portal
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -67,6 +68,13 @@ fun MainPortalScreen(
 ) {
     val pagerState = rememberPagerState(initialPage = 0) { 2 }
     val scope = rememberCoroutineScope()
+
+    // 当用户处于背单词页 (page 1) 时，拦截返回键平滑回到错题本首页 (page 0)，防止误触直接退出应用
+    BackHandler(enabled = pagerState.currentPage != 0) {
+        scope.launch {
+            pagerState.animateScrollToPage(0)
+        }
+    }
 
     LaunchedEffect(filterDueRequest) {
         if (filterDueRequest > 0) {
