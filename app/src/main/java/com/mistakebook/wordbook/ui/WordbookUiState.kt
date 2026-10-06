@@ -17,8 +17,9 @@ enum class WordbookTab {
  * 学习刷题模式。
  */
 enum class StudyMode {
-    QUIZ, // 四选一单选题（一行一选项，含词性 + 主释义）
-    CARD  // 卡片翻面自测（正面单词，点击揭晓完整词性与多义项）
+    QUIZ,  // 四选一单选题（题干单词，选项一行一释义）
+    CARD,  // 卡片翻面自测（正面单词，点击揭晓完整词性与多义项）
+    SENSE  // 义项辨析模式（题干单一特定义项，选项4个英文单词，专攻熟词僻义）
 }
 
 /**
@@ -50,6 +51,7 @@ data class WordbookUiState(
     // 刷题状态
     val currentWord: Word? = null,
     val currentProgress: WordProgress? = null,
+    val currentSense: String? = null, // 义项辨析题干（单一特定义项）
     val options: List<QuizOption> = emptyList(),
     val selectedOptionIndex: Int? = null,
     val isAnswered: Boolean = false,

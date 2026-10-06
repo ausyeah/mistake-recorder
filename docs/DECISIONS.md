@@ -176,3 +176,30 @@
    - 用户屏幕手势划动时：通过 `LaunchedEffect(pagerState.currentPage)` 监听页码变更，实时通知 ViewModel 更新当前业务状态，保证顶部高亮胶囊与下划线游标毫秒级与手势同步；
 3. **利用 Nested Scroll 实现自然的分层滑动冒泡**：
    - Compose 的 `HorizontalPager` 原生支持嵌套滚动（NestedScrollConnection）。当用户在《单词书》首页（学习刷题）向右滑至边缘时，滑动事件自动冒泡至外层 `MainPortalScreen`，自然顺滑地切回「错题本」页面；而在单词书各子页面之间滑动则在内层切换，符合现代移动端手势交互直觉。
+
+## 单词书「义项辨析」模式实现与熟词僻义算法 (2024-10)
+
+### 背景与痛点
+用户指出：“我记得是有义项辨析的啊……”。
+对比原单词书 Web 端实现，原有学习系统包含三大核心刷题模式：
+1. **常规四选一（quiz）**：题干给英文单词，选项给多义项拼接释义；
+2. **卡片自测（card）**：正面单字，翻面呈现全释义并由用户四档打分；
+3. **义项辨析（sense）**：题干给**特写单一义项**（如 `vt. 寄往；致辞`），选项为 4 个英文单词。
+
+常规四选一存在明显的学习假阳性（False Positive）漏洞：
+- 选项释义是「n. 地址；vt. 寄往；致辞」这种完整拼接串，只要认出第一个最常见的义项（address = 地址）就能猜中判对；
+- 导致考研英语最关键的“熟词僻义”根本未被真正掌握，却被算法误标记为已掌握。
+
+### 决策内容
+1. **出题方向与唯一正解硬约束 ([VocabRepository.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/wordbook/data/VocabRepository.kt))**：
+   - 方向反转：题干展现单一特定义项，选项为英文单词（反向出题无法从多个中文释义间取巧）；
+   - **硬约束（绝无双正确答案）**：通过 `splitSenses(meaning)` 拆分多义项并经 `normSense` 剔除标点空格进行归一化；在为目标词挑选 3 个干扰项时，严格排除释义中也包含该题干义项的任何词汇，同时排除同义组词，确保答案物理唯一。
+2. **多义词池与调度过滤协同 ([WordbookViewModel.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/wordbook/ui/WordbookViewModel.kt))**：
+   - 题库池锁定：从内置 4356 词中精确筛选出包含 2 个及以上义项的 1951 个高频多义词（占比 44.8%）；
+   - 在「义项辨析」模式下，选题逻辑（冷却窗口、错词复习、未掌握新词）自动追加多义词判定；
+   - 答对继续触发紧凑的 380ms 自动切题；答错直接计入错词本与 8 题短期重现队列。
+3. **沉浸式纸质卡片与反馈排版 ([WordbookScreen.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/wordbook/ui/WordbookScreen.kt))**：
+   - 顶部提供「四选一模式 / 卡片自测 / 义项辨析」三联单选分段胶囊；
+   - 题干卡片附带专属 `🏷️ 义项辨析 · 熟词僻义自测` 书签标志与指导提示；
+   - 选项卡片主文案为大号衬线英文单词，作答后即时展开该选项对应的中文释义，供学习者迅速对比混淆项；
+   - 答错时提供高对比度自适应警示卡片，详尽列出 `正确答案：word（完整释义）` 与「下一题」推进按钮。

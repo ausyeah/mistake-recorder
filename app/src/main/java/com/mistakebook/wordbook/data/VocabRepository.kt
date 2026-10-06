@@ -199,6 +199,112 @@ class VocabRepository(private val context: Context? = null) {
         return picked.take(count)
     }
 
+    /**
+     * 拆分义项：词库的 meaning 形如「n. 地址；vt. 寄往」，用「；」分出多个义项。
+     */
+    fun splitSenses(meaning: String): List<String> {
+        return meaning.split("；", ";")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+    }
+
+    /**
+     * 义项归一化，用于判断两个义项是否等价（避免出现两个正确答案）。
+     */
+    fun normSense(s: String): String {
+        return s.replace(Regex("[（）()\\s、，,；;。.．·:：/／]"), "").lowercase()
+    }
+
+    /**
+     * 多义词池：有 2 个及以上义项的词。
+     */
+    suspend fun getMultiSenseWords(): List<Word> {
+        ensureLoaded()
+        return wordsList.filter { splitSenses(it.meaning).size >= 2 }
+    }
+
+    /**
+     * 义项辨析出题算法（克制熟词僻义假阳性）：
+     *
+     * 题干呈现单词的具体某个特定义项（如「vt. 寄往；致辞」），
+     * 选项为 4 个英文单词。
+     *
+     * 干扰项选取规则：
+     * 1. 优先同簇（形近词中挑义项最接近者，辨析度最高）
+     * 2. 次选同词性全库
+     * 3. 严格排除释义中也包含该义项的词（确保答案绝对唯一）
+     * 4. 严格排除同义组词
+     */
+    suspend fun buildSenseQuestion(targetWord: Word? = null): SenseQuestion? {
+        ensureLoaded()
+        val multiWords = getMultiSenseWords()
+        if (multiWords.isEmpty()) return null
+
+        val word = if (targetWord != null && splitSenses(targetWord.meaning).size >= 2) {
+            targetWord
+        } else {
+            multiWords.random(Random)
+        }
+
+        val senses = splitSenses(word.meaning)
+        if (senses.isEmpty()) return null
+        val sense = senses.random(Random)
+        val targetNorm = normSense(sense)
+        val sid = synIdOf[word.word]
+        val myPos = splitPos(word.pos)
+
+        val picked = mutableListOf<Word>()
+        val usedWords = mutableSetOf(word.word)
+
+        fun tryAdd(candidates: List<String>) {
+            if (picked.size >= 3) return
+            for (wName in candidates.shuffled(Random)) {
+                if (picked.size >= 3) break
+                val w = wordsMap[wName] ?: continue
+                if (w.word in usedWords || w.meaning.isBlank()) continue
+                val wsid = synIdOf[w.word]
+                if (sid != null && wsid != null && sid == wsid) continue
+                // 排除释义中包含相同义项的词，防止双正确答案
+                if (splitSenses(w.meaning).any { normSense(it) == targetNorm }) continue
+
+                picked.add(w)
+                usedWords.add(w.word)
+            }
+        }
+
+        // L1 & L2: 同簇
+        val clusterWords = clusterOf[word.word] ?: emptyList()
+        if (clusterWords.isNotEmpty()) {
+            val samePosSiblings = clusterWords.filter { sib ->
+                val sibWord = wordsMap[sib]
+                sibWord != null && overlaps(splitPos(sibWord.pos), myPos)
+            }
+            tryAdd(samePosSiblings)
+            tryAdd(clusterWords)
+        }
+
+        // L3: 同词性
+        for (p in myPos) {
+            val posWords = byPos[p] ?: emptyList()
+            tryAdd(posWords)
+            if (picked.size >= 3) break
+        }
+
+        // L4: 全库兜底
+        if (picked.size < 3) {
+            tryAdd(wordsList.map { it.word })
+        }
+
+        if (picked.size < 3) return null
+
+        val allOpts = (listOf(word) + picked).shuffled(Random)
+        return SenseQuestion(
+            word = word,
+            sense = sense,
+            options = allOpts
+        )
+    }
+
     private fun splitPos(pos: String): List<String> {
         return pos.split("/", "／", " ")
             .map { it.trim().removeSuffix(".") }
@@ -210,3 +316,12 @@ class VocabRepository(private val context: Context? = null) {
         return a.any { it in b }
     }
 }
+
+/**
+ * 义项辨析题目数据结构。
+ */
+data class SenseQuestion(
+    val word: Word,
+    val sense: String,
+    val options: List<Word>
+)

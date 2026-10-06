@@ -362,6 +362,11 @@ private fun StudyView(
                         onClick = { viewModel.setStudyMode(StudyMode.CARD) },
                         label = { Text("卡片自测") }
                     )
+                    FilterChip(
+                        selected = state.studyMode == StudyMode.SENSE,
+                        onClick = { viewModel.setStudyMode(StudyMode.SENSE) },
+                        label = { Text("义项辨析") }
+                    )
                 }
 
                 // 熟词标记按钮
@@ -378,6 +383,7 @@ private fun StudyView(
 
         // 单词主纸质卡片
         if (currentWord != null) {
+            val isDark = LocalDarkTheme.current
             item {
                 Card(
                     modifier = Modifier
@@ -390,47 +396,135 @@ private fun StudyView(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 28.dp),
+                            .padding(horizontal = 24.dp, vertical = 26.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = currentWord.word,
-                            fontSize = 36.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center
-                        )
+                        if (state.studyMode == StudyMode.SENSE) {
+                            // 义项辨析专属题干
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isDark) Color(0xFF232A46) else PaperPrimaryTint,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MenuBook,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = if (isDark) Color(0xFF91A7FF) else PaperPrimary
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        text = "义项辨析 · 熟词僻义自测",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isDark) Color(0xFF91A7FF) else PaperPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
 
-                        if (currentWord.pos.isNotBlank()) {
-                            Spacer(Modifier.height(6.dp))
                             Text(
-                                text = currentWord.pos,
+                                text = state.currentSense ?: currentWord.meaning,
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Serif,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 34.sp
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = "请在下方选出与上述义项匹配的英文单词：",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        }
 
-                        // 作答后或卡片揭晓后展示完整中文释义
-                        AnimatedVisibility(
-                            visible = state.isAnswered || state.isCardRevealed,
-                            enter = fadeIn(),
-                            exit = fadeOut()
-                        ) {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Spacer(Modifier.height(18.dp))
-                                HorizontalDivider(
+                            // 作答后展示原词与全部释义
+                            AnimatedVisibility(
+                                visible = state.isAnswered,
+                                enter = fadeIn(),
+                                exit = fadeOut()
+                            ) {
+                                Column(
                                     modifier = Modifier.fillMaxWidth(),
-                                    thickness = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
-                                )
-                                Spacer(Modifier.height(16.dp))
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Spacer(Modifier.height(18.dp))
+                                    HorizontalDivider(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        thickness = 1.dp,
+                                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
+                                    )
+                                    Spacer(Modifier.height(14.dp))
+                                    Text(
+                                        text = currentWord.word,
+                                        fontSize = 26.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Serif,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    if (currentWord.pos.isNotBlank()) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = currentWord.pos,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        text = currentWord.full.ifBlank { currentWord.meaning },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        textAlign = TextAlign.Center,
+                                        lineHeight = 22.sp
+                                    )
+                                }
+                            }
+                        } else {
+                            // 常规四选一 / 卡片模式题干
+                            Text(
+                                text = currentWord.word,
+                                fontSize = 36.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Serif,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center
+                            )
+
+                            if (currentWord.pos.isNotBlank()) {
+                                Spacer(Modifier.height(6.dp))
                                 Text(
-                                    text = currentWord.full.ifBlank { currentWord.meaning },
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    lineHeight = 24.sp
+                                    text = currentWord.pos,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                            }
+
+                            // 作答后或卡片揭晓后展示完整中文释义
+                            AnimatedVisibility(
+                                visible = state.isAnswered || state.isCardRevealed,
+                                enter = fadeIn(),
+                                exit = fadeOut()
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Spacer(Modifier.height(18.dp))
+                                    HorizontalDivider(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        thickness = 1.dp,
+                                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                    Text(
+                                        text = currentWord.full.ifBlank { currentWord.meaning },
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        lineHeight = 24.sp
+                                    )
+                                }
                             }
                         }
                     }
@@ -438,11 +532,12 @@ private fun StudyView(
             }
 
             // 模式分支交互
-            if (state.studyMode == StudyMode.QUIZ) {
-                // 四选一单选列表
+            if (state.studyMode == StudyMode.QUIZ || state.studyMode == StudyMode.SENSE) {
+                // 单选题列表（QUIZ 或 SENSE）
                 items(state.options) { option ->
                     QuizOptionRow(
                         option = option,
+                        isSenseMode = state.studyMode == StudyMode.SENSE,
                         isAnswered = state.isAnswered,
                         onSelect = {
                             val idx = state.options.indexOf(option)
@@ -457,7 +552,55 @@ private fun StudyView(
                 val isWrong = state.isAnswered && (selectedOption?.isCorrect == false)
                 if (isWrong) {
                     item {
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(14.dp))
+                        val correctOption = state.options.firstOrNull { it.isCorrect }
+                        val wrongExplanation = if (state.studyMode == StudyMode.SENSE && correctOption != null) {
+                            "正确答案：${correctOption.word.word}（${correctOption.word.meaning}）"
+                        } else {
+                            "正确答案：${correctOption?.word?.meaning ?: ""}"
+                        }
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isDark) Color(0xFF381518) else Color(0xFFFFF0F0)
+                            ),
+                            border = CardDefaults.outlinedCardBorder().copy(
+                                brush = androidx.compose.ui.graphics.SolidColor(
+                                    if (isDark) Color(0xFFFF6B6B) else Color(0xFFC92A2A)
+                                )
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = null,
+                                    tint = if (isDark) Color(0xFFFF6B6B) else Color(0xFFC92A2A),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "答错了（已加入错题本待复习）",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isDark) Color(0xFFFFA8A8) else Color(0xFFC92A2A)
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = wrongExplanation,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (isDark) Color(0xFFFFE8E8) else Color(0xFF821818)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(12.dp))
                         Button(
                             onClick = viewModel::prepareNextQuestion,
                             modifier = Modifier
@@ -534,6 +677,7 @@ private fun RateButton(
 @Composable
 private fun QuizOptionRow(
     option: QuizOption,
+    isSenseMode: Boolean = false,
     isAnswered: Boolean,
     onSelect: () -> Unit
 ) {
@@ -658,20 +802,53 @@ private fun QuizOptionRow(
             Spacer(Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                if (option.word.pos.isNotBlank()) {
+                if (isSenseMode) {
+                    // 义项辨析模式：选项呈现英文单词
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = option.word.word,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Serif,
+                            color = meaningColor
+                        )
+                        if (option.word.pos.isNotBlank()) {
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = option.word.pos,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = posColor,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    if (isAnswered) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = option.word.meaning,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = meaningColor.copy(alpha = 0.85f),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                } else {
+                    // 常规四选一模式：选项呈现中文释义
+                    if (option.word.pos.isNotBlank()) {
+                        Text(
+                            text = option.word.pos,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = posColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     Text(
-                        text = option.word.pos,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = posColor,
-                        fontWeight = FontWeight.Bold
+                        text = option.word.meaning,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = meaningColor,
+                        fontWeight = if (isAnswered && (option.isCorrect || option.isSelected)) FontWeight.Medium else FontWeight.Normal
                     )
                 }
-                Text(
-                    text = option.word.meaning,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = meaningColor,
-                    fontWeight = if (isAnswered && (option.isCorrect || option.isSelected)) FontWeight.Medium else FontWeight.Normal
-                )
             }
 
             if (isAnswered) {

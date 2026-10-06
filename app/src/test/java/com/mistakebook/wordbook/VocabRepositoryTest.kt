@@ -120,4 +120,42 @@ class VocabRepositoryTest {
         assertTrue(wrongProgress.isWrongBook)
         assertTrue(wrongProgress.everWrong)
     }
+
+    @Test
+    fun `splitSenses and normSense work as expected`() {
+        val senses = repo.splitSenses("n. 地址；vt. 寄往；致辞")
+        assertEquals(3, senses.size)
+        assertEquals("n. 地址", senses[0])
+        assertEquals("vt. 寄往", senses[1])
+        assertEquals("致辞", senses[2])
+
+        val n1 = repo.normSense("vt. 寄往；致辞")
+        val n2 = repo.normSense("vt.寄往,致辞。")
+        assertEquals(n1, n2)
+    }
+
+    @Test
+    fun `buildSenseQuestion returns unique correct answer and valid distractors`() = runBlocking {
+        val target = sampleWords.first { it.word == "desert" } // desert has 2 senses: "v. 舍弃，遗弃" and "n. 沙漠"
+        val q = repo.buildSenseQuestion(target)
+        assertNotNull(q)
+        assertEquals("desert", q!!.word.word)
+        assertEquals(4, q.options.size)
+        // 包含正确目标词 desert
+        assertTrue(q.options.any { it.word == "desert" })
+
+        // 正确目标词只能出现一次
+        assertEquals(1, q.options.count { it.word == "desert" })
+
+        // 干扰项中绝不能包含能够匹配题干义项的词（避免假阳性或双正确答案）
+        val targetSenseNorm = repo.normSense(q.sense)
+        val distractors = q.options.filter { it.word != "desert" }
+        for (d in distractors) {
+            val dSenses = repo.splitSenses(d.meaning)
+            assertFalse(
+                "干扰项 ${d.word} 不能包含题干义项 ${q.sense}",
+                dSenses.any { repo.normSense(it) == targetSenseNorm }
+            )
+        }
+    }
 }

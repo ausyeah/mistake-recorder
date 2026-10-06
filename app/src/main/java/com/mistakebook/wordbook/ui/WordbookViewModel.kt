@@ -91,7 +91,10 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun setStudyMode(mode: StudyMode) {
-        _uiState.update { it.copy(studyMode = mode) }
+        if (_uiState.value.studyMode != mode) {
+            _uiState.update { it.copy(studyMode = mode) }
+            prepareNextQuestion()
+        }
     }
 
     fun setWrongSubTab(subTab: WrongSubTab) {
@@ -112,6 +115,7 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
                     it.copy(
                         currentWord = null,
                         currentProgress = null,
+                        currentSense = null,
                         options = emptyList(),
                         isAnswered = false,
                         selectedOptionIndex = null,
@@ -120,6 +124,35 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
                     )
                 }
                 return@launch
+            }
+
+            if (_uiState.value.studyMode == StudyMode.SENSE) {
+                val senseQ = vocabRepo.buildSenseQuestion(nextWord)
+                if (senseQ != null) {
+                    val progress = dao.getProgress(senseQ.word.word) ?: WordProgress(word = senseQ.word.word)
+                    val labels = listOf("A", "B", "C", "D")
+                    val options = senseQ.options.mapIndexed { index, candidate ->
+                        QuizOption(
+                            label = labels.getOrElse(index) { "?" },
+                            word = candidate,
+                            isCorrect = candidate.word == senseQ.word.word,
+                            isSelected = false
+                        )
+                    }
+                    _uiState.update {
+                        it.copy(
+                            currentWord = senseQ.word,
+                            currentProgress = progress,
+                            currentSense = senseQ.sense,
+                            options = options,
+                            selectedOptionIndex = null,
+                            isAnswered = false,
+                            isCardRevealed = false,
+                            isLoading = false
+                        )
+                    }
+                    return@launch
+                }
             }
 
             val progress = dao.getProgress(nextWord.word) ?: WordProgress(word = nextWord.word)
@@ -141,6 +174,7 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
                 it.copy(
                     currentWord = nextWord,
                     currentProgress = progress,
+                    currentSense = null,
                     options = options,
                     selectedOptionIndex = null,
                     isAnswered = false,
@@ -152,9 +186,12 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     private suspend fun pickNextWord(): Word? = withContext(Dispatchers.IO) {
+        val isSenseMode = _uiState.value.studyMode == StudyMode.SENSE
+        fun isEligibleSenseWord(w: Word): Boolean = !isSenseMode || vocabRepo.splitSenses(w.meaning).size >= 2
+
         // 1. 优先查看短期重现队列（已达到重现题数且不在冷却窗口内的词）
         val deferIndex = deferQueue.indexOfFirst {
-            sessionAnswerCount >= it.reappearAtAnswerCount && it.word.word !in recentWords
+            sessionAnswerCount >= it.reappearAtAnswerCount && it.word.word !in recentWords && isEligibleSenseWord(it.word)
         }
         if (deferIndex >= 0) {
             val item = deferQueue.removeAt(deferIndex)
@@ -172,7 +209,12 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
         val pendingDeferWords = deferQueue.map { it.word.word }.toSet()
 
         val eligibleWrong = wrongList.filter {
-            it.word !in recentWords && it.word !in pendingDeferWords
+            it.word !in recentWords && it.word !in pendingDeferWords && run {
+                if (!isSenseMode) true else {
+                    val w = vocabRepo.getWord(it.word)
+                    w != null && isEligibleSenseWord(w)
+                }
+            }
         }
 
         if (eligibleWrong.isNotEmpty() && Random.nextFloat() < 0.20f) {
@@ -183,7 +225,7 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
 
         // 3. 抽取未掌握的新词/生词（排除熟词、冷却窗口以及排队中的重现词）
         val unmastered = allWords.filter { w ->
-            w.word !in recentWords && w.word !in pendingDeferWords && run {
+            w.word !in recentWords && w.word !in pendingDeferWords && isEligibleSenseWord(w) && run {
                 val p = allProgress[w.word]
                 p == null || (!p.isMastered && p.level < 3)
             }
@@ -195,12 +237,16 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
 
         // 4. 兜底回退：若未掌握词已抽完，放宽限制，但依然绝对排除上一道刚答过的词
         val lastWord = recentWords.lastOrNull()
-        val fallbackWords = allWords.filter { it.word != lastWord }
+        val fallbackWords = allWords.filter { it.word != lastWord && isEligibleSenseWord(it) }
         if (fallbackWords.isNotEmpty()) {
             return@withContext fallbackWords.random(Random)
         }
 
-        allWords.randomOrNull(Random)
+        if (isSenseMode) {
+            vocabRepo.getMultiSenseWords().randomOrNull(Random)
+        } else {
+            allWords.randomOrNull(Random)
+        }
     }
 
     /**
@@ -264,7 +310,7 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
                 WordStudyLog(
                     word = current.word,
                     isCorrect = isCorrect,
-                    studyMode = "quiz",
+                    studyMode = if (state.studyMode == StudyMode.SENSE) "sense" else "quiz",
                     answeredAt = now
                 )
             )
@@ -277,7 +323,7 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
             viewModelScope.launch {
                 kotlinx.coroutines.delay(380L)
                 val s = _uiState.value
-                if (s.isAnswered && s.currentWord?.word == current.word && s.studyMode == StudyMode.QUIZ) {
+                if (s.isAnswered && s.currentWord?.word == current.word && (s.studyMode == StudyMode.QUIZ || s.studyMode == StudyMode.SENSE)) {
                     prepareNextQuestion()
                 }
             }
