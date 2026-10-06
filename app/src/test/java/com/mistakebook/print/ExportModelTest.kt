@@ -1,6 +1,7 @@
 package com.mistakebook.print
 
 import com.mistakebook.data.local.entities.Question
+import com.mistakebook.domain.ErrorReason
 import com.mistakebook.domain.MasteryStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -23,7 +24,7 @@ class ExportModelTest {
 
     @Test
     fun `tokenizeWithMath parses inline and display math accurately`() {
-        val input = "已知函数 $f(x) = x^2 + 1$，求证：\n$$\\lim_{x \\to 0} f(x) = 1$$"
+        val input = "已知函数 \$f(x) = x^2 + 1\$，求证：\n\$\$\\lim_{x \\to 0} f(x) = 1\$\$"
         val tokens = tokenizeWithMath(input)
 
         // 验证含有行内公式
@@ -42,10 +43,18 @@ class ExportModelTest {
         val question = Question(
             id = 1L,
             subjectId = 10L,
-            stem = "求导数 $y = \\ln x$",
-            answer = "$y' = \\frac{1}{x}$",
+            imagePath = "test.jpg",
+            mineruMarkdown = "",
+            stem = "求导数 \$y = \\ln x\$",
+            optionsJson = "[]",
+            answer = "\$y' = \\frac{1}{x}\$",
             analysis = "直接套用求导公式",
-            status = MasteryStatus.ACTIVE
+            knowledgePointsJson = "[]",
+            errorReason = ErrorReason.CALCULATION,
+            difficulty = 3,
+            status = MasteryStatus.ACTIVE,
+            createdAt = 1L,
+            updatedAt = 1L
         )
         val options = ExportOptions(
             includeImage = false,

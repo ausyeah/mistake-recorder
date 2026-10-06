@@ -30,7 +30,7 @@ foreach ($run in $response.workflow_runs) {
                 if ($job.conclusion -eq "failure") {
                     $log = Invoke-RestMethod -Uri "https://api.github.com/repos/ausyeah/mistake-recorder/actions/jobs/$($job.id)/logs" -Headers $headers
                     $lines = $log -split "`n"
-                    $lines | Select-String -Pattern "error:|FAILURE:|Compilation error" -Context 2,2 | Select-Object -First 10 | ForEach-Object { $_.ToString() }
+                    $lines | Select-String -Pattern "e: file:|Compilation error|FAILURE:" -Context 1,2 | Select-Object -First 10 | ForEach-Object { $_.ToString() }
                 }
             }
         } catch {
