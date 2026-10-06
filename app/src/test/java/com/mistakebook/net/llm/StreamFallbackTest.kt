@@ -18,13 +18,13 @@ class StreamFallbackTest {
     private fun error(kind: ApiErrorKind) = ApiError(kind = kind)
 
     @Test
-    fun `已经吐过内容绝不降级`() {
+    fun `已经吐过内容或思考绝不降级`() {
         // 最重要的一条：降级会重发，用户会看到同一段话出现两遍。
         listOf(
             ApiErrorKind.NETWORK, ApiErrorKind.TIMEOUT,
             ApiErrorKind.BAD_RESPONSE, ApiErrorKind.UNKNOWN
         ).forEach { kind ->
-            assertFalse("$kind 不该降级", StreamFallback.shouldFallback(error(kind), deltasEmitted = 1))
+            assertFalse("$kind 不该降级", StreamFallback.shouldFallback(error(kind), totalEmitted = 1))
         }
     }
 
@@ -37,14 +37,14 @@ class StreamFallbackTest {
             ApiErrorKind.SERVER,
             ApiErrorKind.NO_KEY
         ).forEach { kind ->
-            assertFalse("$kind 不该降级", StreamFallback.shouldFallback(error(kind), deltasEmitted = 0))
+            assertFalse("$kind 不该降级", StreamFallback.shouldFallback(error(kind), totalEmitted = 0))
         }
     }
 
     @Test
     fun `用户取消不降级`() {
         // 点了停止还偷偷重发，用户会觉得「停不下来」。
-        assertFalse(StreamFallback.shouldFallback(error(ApiErrorKind.CANCELLED), deltasEmitted = 0))
+        assertFalse(StreamFallback.shouldFallback(error(ApiErrorKind.CANCELLED), totalEmitted = 0))
     }
 
     @Test
@@ -55,7 +55,7 @@ class StreamFallbackTest {
             ApiErrorKind.BAD_RESPONSE,
             ApiErrorKind.UNKNOWN
         ).forEach { kind ->
-            assertTrue("$kind 该降级", StreamFallback.shouldFallback(error(kind), deltasEmitted = 0))
+            assertTrue("$kind 该降级", StreamFallback.shouldFallback(error(kind), totalEmitted = 0))
         }
     }
 }

@@ -70,8 +70,8 @@ object StreamFallback {
      *    只是白烧一次配额，还把真实错误信息冲淡了。
      * 3. **用户主动取消不降级**。取消后偷偷重发，用户点了停止却还在烧 token。
      */
-    fun shouldFallback(error: ApiError, deltasEmitted: Int): Boolean {
-        if (deltasEmitted > 0) return false
+    fun shouldFallback(error: ApiError, totalEmitted: Int): Boolean {
+        if (totalEmitted > 0) return false
         return when (error.kind) {
             ApiErrorKind.AUTH,
             ApiErrorKind.RATE_LIMIT,
