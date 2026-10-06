@@ -50,6 +50,18 @@ class BackupManager(
 
     suspend fun export(): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
+            // 备份前对两个数据库均执行安全检查点（checkpoint / flush）
+            val wordbookDb = context.getDatabasePath("wordbook_local.db")
+            listOf(files.databaseFile, wordbookDb).forEach { dbFile ->
+                if (dbFile.exists()) {
+                    runCatching {
+                        SQLiteDatabase.openDatabase(dbFile.absolutePath, null, SQLiteDatabase.OPEN_READWRITE).use { db ->
+                            db.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { it.moveToFirst() }
+                        }
+                    }
+                }
+            }
+
             // 先关库：把 WAL checkpoint 进 .db 并清掉 -wal/-shm，
             // 否则备份里那份 .db 缺最近的数据。详见 closeDatabase 的注释。
             closeDatabase()
@@ -135,6 +147,27 @@ class BackupManager(
 
                 restoredDb.copyTo(db, overwrite = false)
 
+                // 完整解压并还原 wordbook_local.db 及其关联文件（兼容旧版本备份）
+                val restoredWordbookDb = File(temp, "wordbook_local.db")
+                if (restoredWordbookDb.exists()) {
+                    val wordbookDb = context.getDatabasePath("wordbook_local.db")
+                    wordbookDb.parentFile?.mkdirs()
+                    wordbookDb.delete()
+                    File(wordbookDb.path + "-wal").delete()
+                    File(wordbookDb.path + "-shm").delete()
+
+                    restoredWordbookDb.copyTo(wordbookDb, overwrite = false)
+
+                    val restoredWordbookWal = File(temp, "wordbook_local.db-wal")
+                    if (restoredWordbookWal.exists()) {
+                        restoredWordbookWal.copyTo(File(wordbookDb.path + "-wal"), overwrite = false)
+                    }
+                    val restoredWordbookShm = File(temp, "wordbook_local.db-shm")
+                    if (restoredWordbookShm.exists()) {
+                        restoredWordbookShm.copyTo(File(wordbookDb.path + "-shm"), overwrite = false)
+                    }
+                }
+
                 val restoredFiles = File(temp, "files")
                 if (restoredFiles.exists()) {
                     restoredFiles.copyRecursively(context.filesDir, overwrite = true)
@@ -171,6 +204,17 @@ class BackupManager(
             zip.putNextEntry(ZipEntry(files.databaseFile.name))
             files.databaseFile.inputStream().use { it.copyTo(zip) }
             zip.closeEntry()
+            
+            // 将 wordbook_local.db 及其 WAL/SHM 文件纳入 ZIP 归档
+            val wordbookDb = context.getDatabasePath("wordbook_local.db")
+            listOf(wordbookDb, File(wordbookDb.path + "-wal"), File(wordbookDb.path + "-shm")).forEach { file ->
+                if (file.exists()) {
+                    zip.putNextEntry(ZipEntry(file.name))
+                    file.inputStream().use { it.copyTo(zip) }
+                    zip.closeEntry()
+                }
+            }
+            
             entries.forEach { (file, entryName) ->
                 zip.putNextEntry(ZipEntry(entryName))
                 file.inputStream().use { it.copyTo(zip) }
