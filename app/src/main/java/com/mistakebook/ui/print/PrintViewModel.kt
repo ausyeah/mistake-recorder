@@ -36,8 +36,8 @@ data class PrintUiState(
     val showAnswer: Boolean = false,
     val blankRedo: Boolean = true,
     val blankHeight: Int = 100,
-    /** 选中的导出格式。 */
-    val format: ExportFormat = ExportFormat.HTML,
+    /** 选中的导出格式，默认直接输出 A4 PDF。 */
+    val format: ExportFormat = ExportFormat.PDF,
     val generating: Boolean = false,
     val result: ExportPublisher.Output? = null,
     val skipped: List<String> = emptyList(),
@@ -76,7 +76,7 @@ class PrintViewModel(private val container: AppContainer) : ViewModel() {
     private val showAnswer = MutableStateFlow(false)
     private val blankRedo = MutableStateFlow(true)
     private val blankHeight = MutableStateFlow(100)
-    private val format = MutableStateFlow(ExportFormat.HTML)
+    private val format = MutableStateFlow(ExportFormat.PDF)
     private val generating = MutableStateFlow(false)
     private val result = MutableStateFlow<ExportPublisher.Output?>(null)
     private val skipped = MutableStateFlow<List<String>>(emptyList())
@@ -244,11 +244,11 @@ class PrintViewModel(private val container: AppContainer) : ViewModel() {
             )
 
             val target = container.exportPublisher.createTempFile(chosen)
-            // 只剩 HTML 一种格式，`when` 也就不需要了。
-            // PDF 由用户在浏览器里用系统打印功能生成（比 WebView 打印管线更好控制），
-            // DOCX 已删除——OMML 在多数阅读器里效果很差。
             val run = runCatching {
-                HtmlExporter(container.mathRenderer).export(doc, target)
+                when (chosen) {
+                    ExportFormat.PDF -> com.mistakebook.print.PdfExporter(container.mathRenderer).export(doc, target)
+                    ExportFormat.HTML -> HtmlExporter(container.mathRenderer).export(doc, target)
+                }
             }
             generating.value = false
             run.onSuccess { exported ->
@@ -262,8 +262,9 @@ class PrintViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    // setFormat 已随格式选择器一起删除：只剩 HTML 一种格式，没有可切的了。
-    // 保留这个方法的话会诱使人以为还能切换格式。
+    fun setFormat(value: ExportFormat) {
+        format.value = value
+    }
 
     fun consumeResult() {
         result.value = null

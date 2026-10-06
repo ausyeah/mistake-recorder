@@ -47,6 +47,7 @@ import com.mistakebook.data.local.entities.Question
 import com.mistakebook.data.local.entities.Subject
 import com.mistakebook.data.local.printImagePath
 import com.mistakebook.domain.MasteryStatus
+import com.mistakebook.print.ExportFormat
 import com.mistakebook.ui.common.EmptyState
 import com.mistakebook.ui.common.QuestionThumb
 import com.mistakebook.ui.common.ReorderDragHandle
@@ -144,10 +145,12 @@ fun PrintOptionsPanel(
     showAnswer: Boolean,
     blankRedo: Boolean,
     blankHeight: Int,
+    format: ExportFormat,
     onIncludeImage: (Boolean) -> Unit,
     onShowAnswer: (Boolean) -> Unit,
     onBlankRedo: (Boolean) -> Unit,
-    onBlankHeight: (Int) -> Unit
+    onBlankHeight: (Int) -> Unit,
+    onFormatChange: (ExportFormat) -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -156,11 +159,27 @@ fun PrintOptionsPanel(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = stringResource(R.string.print_options),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = stringResource(R.string.print_export_format),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ExportFormat.entries.forEach { f ->
+                        FilterChip(
+                            selected = format == f,
+                            onClick = { onFormatChange(f) },
+                            label = { Text(stringResource(f.shortLabelRes)) }
+                        )
+                    }
+                }
+            }
             Spacer(Modifier.height(4.dp))
             OptionSwitch(
                 label = stringResource(R.string.print_include_image),

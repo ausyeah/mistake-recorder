@@ -68,6 +68,14 @@ enum class ExportFormat(
      */
     val shortLabelRes: Int
 ) {
+    /** 原生 A4 PDF：系统 PdfDocument 生成，直接打印/分享，答题区留白纯净无横线。 */
+    PDF(
+        "pdf",
+        "application/pdf",
+        com.mistakebook.R.string.export_format_pdf,
+        com.mistakebook.R.string.export_format_pdf_short
+    ),
+
     /** 单文件自包含：图片走 base64 data URL，公式走原生 MathML。 */
     HTML(
         "html",

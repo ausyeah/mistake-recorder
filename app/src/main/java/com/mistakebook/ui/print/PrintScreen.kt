@@ -75,10 +75,12 @@ fun PrintScreen(container: AppContainer, onBack: () -> Unit) {
                 showAnswer = state.showAnswer,
                 blankRedo = state.blankRedo,
                 blankHeight = state.blankHeight,
+                format = state.format,
                 onIncludeImage = viewModel::setIncludeImage,
                 onShowAnswer = viewModel::setShowAnswer,
                 onBlankRedo = viewModel::setBlankRedo,
-                onBlankHeight = viewModel::setBlankHeight
+                onBlankHeight = viewModel::setBlankHeight,
+                onFormatChange = viewModel::setFormat
             )
 
             PrintQuestionList(

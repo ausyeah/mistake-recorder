@@ -388,8 +388,12 @@
     <string name="chat_error_needs_key_body">配置后才能与 AI 对话。Key 只保存在本机，不会上传到任何地方。</string>
     <string name="chat_loading">正在打开对话…</string>
 
-    <!-- ========== 导出格式（v0.0.8） ========== -->
-    <string name="export_format_html">HTML（单文件·可直接用浏览器打开）</string>
+    <!-- ========== 导出格式 ========== -->
+    <string name="export_format_pdf">PDF（推荐·原生直接打印）</string>
+    <string name="export_format_pdf_short">PDF</string>
+    <string name="export_format_html">HTML（单文件·浏览器打开）</string>
+    <string name="export_format_html_short">HTML</string>
+    <string name="print_export_format">导出格式</string>
     <string name="export_generating">正在生成…</string>
     <string name="export_done">已导出：%1$s</string>
     <string name="export_open">打开</string>
@@ -409,12 +413,10 @@
     <string name="chat_math_failed_body">下面这几个公式的 LaTeX 源文有问题，已显示为小字体。可以在编辑页点「检查」一键修复。</string>
     <string name="chat_math_failed_count">%1$d 处公式未渲染</string>
 
-    <string name="export_format_html_short">HTML</string>
-
     <string name="chat_image_unreadable">（图片无法显示）</string>
     <string name="chat_image_content_description">发送的图片</string>
 
-    <string name="print_pdf_hint">需要 PDF？打开生成的 HTML 文件，用浏览器的打印功能（菜单里选「打印」→「另存为 PDF」）即可，页边距与缩放都能调。</string>
+    <string name="print_pdf_hint">默认输出 A4 原生 PDF，答题区留白纯净无横线；也可选 HTML 文件在浏览器中打开。</string>
     <string name="crop_title">裁剪题目</string>
     <string name="crop_selection">框选</string>
 </resources>
