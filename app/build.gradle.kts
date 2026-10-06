@@ -81,11 +81,9 @@ android {
         applicationId = "com.mistakebook$appIdSuffix"
         minSdk = 26
         targetSdk = 35
-        // versionCode 必须单调递增，否则手机上已装的同 versionCode 包
-        // versionCode 必须单调递增：Android 拒绝覆盖安装同 versionCode 的包。
-        // versionCode 单调递增：1 = v0.0.1，2 = v0.0.2
-        versionCode = 2
-        versionName = "0.0.2"
+        // versionCode 必须单调递增：1 = v0.0.1, 2 = v0.0.2, 3 = v0.0.3, 4 = v0.0.4
+        versionCode = 4
+        versionName = "0.0.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
