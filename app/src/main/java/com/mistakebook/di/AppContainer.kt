@@ -136,6 +136,18 @@ class AppContainer(context: Context) {
         )
     }
 
+    val wordbookDatabase: com.mistakebook.wordbook.data.WordbookDatabase by lazy {
+        com.mistakebook.wordbook.data.WordbookDatabase.build(appContext)
+    }
+
+    val wordbookDao: com.mistakebook.wordbook.data.WordbookDao by lazy {
+        wordbookDatabase.wordbookDao()
+    }
+
+    val vocabRepository: com.mistakebook.wordbook.data.VocabRepository by lazy {
+        com.mistakebook.wordbook.data.VocabRepository(appContext)
+    }
+
     val mineruClient: MineruClient by lazy { MineruClient(mineruApi, files) }
 
     val llmClient: LlmClient by lazy { LlmClient(llmApi) }

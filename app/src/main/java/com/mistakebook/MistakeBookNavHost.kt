@@ -22,6 +22,7 @@ import com.mistakebook.ui.detail.DetailScreen
 import com.mistakebook.ui.edit.EditScreen
 import com.mistakebook.ui.edit.QuestionEditScreen
 import com.mistakebook.ui.home.HomeScreen
+import com.mistakebook.ui.portal.MainPortalScreen
 import com.mistakebook.ui.importpdf.PdfImportScreen
 import com.mistakebook.ui.notebook.NotebookScreen
 import com.mistakebook.ui.print.PrintScreen
@@ -100,7 +101,7 @@ fun MistakeBookNavHost(
     NavHost(navController = navController, startDestination = Routes.HOME) {
 
         composable(Routes.HOME) {
-            HomeScreen(
+            MainPortalScreen(
                 container = container,
                 filterDue = filterDue,
                 filterDueRequest = filterDueRequest,

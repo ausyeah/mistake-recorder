@@ -84,4 +84,30 @@
    - 排版器第一阶段按行安全切分、计算确切总页数 `M`，避免页底文字截断或孤题号遗留；
    - `PrintUiState` 与选项面板提供「PDF（推荐）」与「HTML」快捷切换，默认直出 PDF 并通过系统阅读器即刻预览和分享。
 
+## 双核主页门户与纸质化背单词模块整合 (2024-10)
+
+### 背景与诉求
+用户拥有此前独立开发的《单词书》（考研 4356 词库、同根形近干扰项算法、背词/错词/检索/统计闭环），希望将其整套功能与纸质化设计风格完整搬入当前错题本 App 中。
+核心诉求包括：
+1. **主页双选项交互**：进入主页有「错题本」与「背单词」两个顶层选项，自由切换；
+2. **纸质化设计美学**：全面引入温润暖纸（Warm Paper：暖米灰底 #F6F4EE、暖白纸卡片 #FFFEFB、靛蓝品牌色 #3B5BDB、四级掌握度色条）及护眼「深色墨砚夜读模式」（Dark Ink Paper）；
+3. **纯本地化、零后端同步**：无远程云端、无账号体系，秒开且绝对私密；
+4. **功能算法完整保留**：四层同词根干扰项抽取（排除同义二义性）、四选一模式、卡片翻转自测、答错 6~8 题短期重现、错词连对 3 次毕业出库、曾错本归档、熟词标记（☆）、4356 考研词全文检索与掌握度筛选、打卡与学习统计看板。
+
+### 决策内容
+1. **双核门户架构 ([MainPortalScreen.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/ui/portal/MainPortalScreen.kt))**：
+   - 顶层设计暖纸风格双选项胶囊分段组件（`PortalSegmentedControl`），配合平滑 `Crossfade` 过渡；
+   - 导航层 `Routes.HOME` 统一挂载 `MainPortalScreen`，错题本原有所有导航参数（拍照加题、裁剪、打印、AI对话、错题本筛选）100% 透传，互不破坏；
+   - 错题本页设置零 WindowInsets 规避嵌套 AppBar 的间隙跳动，背单词页在顶栏提供设置入口。
+2. **纸质化设计系统与深色模式 ([Color.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/ui/theme/Color.kt), [Theme.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/ui/theme/Theme.kt))**：
+   - 注入 `PaperBgLight`、`PaperCardLight`、`PaperPrimary`、`PaperLv0~Lv3` 等经典纸质规范；
+   - 扩展构建深色墨砚配色（`PaperBgDark` #19181D, `PaperCardDark` #24232C, `PaperTextPrimaryDark` #ECE9E2），通过 `isSystemInDarkTheme()` 自适应，兼顾夜晚沉浸阅读与 OLED 护眼省电。
+3. **独立单机数据库设计 ([WordbookDatabase.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/wordbook/data/WordbookDatabase.kt))**：
+   - 不修改已有 `MistakeBookDatabase`（版本 3）旧表，避免触发复杂的 Schema 迁移指纹变更；
+   - 创建独立的单机轻量 Room 库 `wordbook_local.db`（版本 1，`WordProgress` 与 `WordStudyLog` 表），彻底隔离错题本与单词书的数据生命周期与备份逻辑，安全可靠。
+4. **算法高保真还原与测试解耦 ([VocabRepository.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/wordbook/data/VocabRepository.kt))**：
+   - 将 `vocab.json`（4356 词）与 `vocab-index.json` 作为本地内置 Assets 加载；
+   - 完整还原 L1（同根同词性）-> L2（同根跨词性）-> L3（同词性）-> L4（全库兜底）四层智能干扰项生成算法，并通过 `synGroups` 严格剔除同义词，杜绝双答案逻辑缺陷；
+   - 提供单元测试重载构造函数，使算法能够脱离 Android Context 在纯 JVM 单元测试中执行校验。
+
 

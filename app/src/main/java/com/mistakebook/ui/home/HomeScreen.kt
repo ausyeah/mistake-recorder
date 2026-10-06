@@ -261,8 +261,10 @@ fun HomeScreen(
     }
 
     Scaffold(
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
+                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
                 title = {
                     // 搜索框放导航栏正中，做窄一点。
                     // 之前它独占一整行压在筛选条上方，把首屏最宝贵的位置全占了。

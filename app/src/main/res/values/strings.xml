@@ -419,4 +419,39 @@
     <string name="print_pdf_hint">默认输出 A4 原生 PDF，答题区留白纯净无横线；也可选 HTML 文件在浏览器中打开。</string>
     <string name="crop_title">裁剪题目</string>
     <string name="crop_selection">框选</string>
+
+    <!-- ========== 双核主页与背单词模块 ========== -->
+    <string name="portal_mistake_book">错题本</string>
+    <string name="portal_word_book">背单词</string>
+    <string name="wordbook_tab_study">学习刷题</string>
+    <string name="wordbook_tab_wrong">错题本</string>
+    <string name="wordbook_tab_library">词库检索</string>
+    <string name="wordbook_tab_stats">学习统计</string>
+    <string name="wordbook_quiz_mode">四选一模式</string>
+    <string name="wordbook_card_mode">卡片自测</string>
+    <string name="wordbook_master_star">熟词标记</string>
+    <string name="wordbook_next_question">下一题</string>
+    <string name="wordbook_reveal_card">点击揭晓完整释义</string>
+    <string name="wordbook_rate_forget">忘记了</string>
+    <string name="wordbook_rate_fuzzy">模糊</string>
+    <string name="wordbook_rate_know">认识</string>
+    <string name="wordbook_rate_master">熟练</string>
+    <string name="wordbook_library_search_hint">搜索 4356 个考研单词或中文释义…</string>
+    <string name="wordbook_study_empty_title">太棒了，当前词库学习已告一段落！</string>
+    <string name="wordbook_study_empty_desc">错词本与待复习列表已清空，可去词库检索更多生词</string>
+    <string name="wordbook_extract_practice">抽取练习题</string>
+    <string name="wordbook_wrong_empty">错词本干干净净，暂无待复习错词 🎉</string>
+    <string name="wordbook_ever_wrong_empty">暂无曾错毕业词汇</string>
+    <string name="wordbook_mastered_empty">暂无手动标记的熟词</string>
+    <string name="wordbook_stats_progress_title">词库总览与进度</string>
+    <string name="wordbook_stats_today">今日已学</string>
+    <string name="wordbook_stats_due_wrong">待复习错词</string>
+    <string name="wordbook_stats_rules_title">四级掌握度体系规则</string>
+    <string name="wordbook_subtab_wrong">错词本 (%1$d)</string>
+    <string name="wordbook_subtab_ever_wrong">曾错毕业本</string>
+    <string name="wordbook_subtab_mastered">熟词本 (%1$d)</string>
+    <string name="wordbook_remove">移出</string>
+    <string name="wordbook_remove_success">已移出错题本</string>
+    <string name="wordbook_master_marked">已标记为熟词，后续不再安排练习</string>
+    <string name="wordbook_master_unmarked">已取消熟词</string>
 </resources>
