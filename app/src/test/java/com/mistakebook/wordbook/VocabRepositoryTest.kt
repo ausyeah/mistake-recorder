@@ -74,7 +74,7 @@ class VocabRepositoryTest {
     }
 
     @Test
-    fun `word progress graduation after 3 consecutive correct answers`() {
+    fun `word progress graduation after correct answer in review`() {
         val initial = WordProgress(
             word = "abandon",
             level = 0,
@@ -83,25 +83,16 @@ class VocabRepositoryTest {
             everWrong = true
         )
 
-        // 答对第 1 次
-        val p1 = initial.copy(level = 2, reps = initial.reps + 1, isWrongBook = true)
-        assertTrue(p1.isWrongBook)
-        assertEquals(1, p1.reps)
-
-        // 答对第 2 次
-        val p2 = p1.copy(reps = p1.reps + 1, isWrongBook = true)
-        assertTrue(p2.isWrongBook)
-        assertEquals(2, p2.reps)
-
-        // 答对第 3 次：满足 reps >= 3，连对毕业出库！
-        val newReps = p2.reps + 1
-        val p3 = p2.copy(
+        // 答对：满足 reps >= 1，复习答对即从错词本毕业出库！
+        val newReps = initial.reps + 1
+        val p1 = initial.copy(
+            level = 2,
             reps = newReps,
-            isWrongBook = if (p2.isWrongBook && newReps >= 3) false else p2.isWrongBook
+            isWrongBook = if (initial.isWrongBook && newReps >= 1) false else initial.isWrongBook
         )
-        assertFalse("连续答对3次应从错词本毕业", p3.isWrongBook)
-        assertTrue("曾经错过的标记应保留", p3.everWrong)
-        assertEquals(3, p3.reps)
+        assertFalse("复习答对后应从错词本毕业", p1.isWrongBook)
+        assertTrue("曾经错过的标记应保留", p1.everWrong)
+        assertEquals(1, p1.reps)
     }
 
     @Test

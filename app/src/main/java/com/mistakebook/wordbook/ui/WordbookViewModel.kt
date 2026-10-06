@@ -31,6 +31,17 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
     private val deferQueue = mutableListOf<DeferItem>()
     private var sessionAnswerCount = 0
 
+    // 最近刷过的单词滑动窗口（冷却窗口，严格防止单词连着连续出现）
+    private val recentWords = ArrayDeque<String>()
+    private val COOL_DOWN_WINDOW = 8
+
+    private fun recordRecentWord(wordStr: String) {
+        recentWords.addLast(wordStr)
+        while (recentWords.size > COOL_DOWN_WINDOW) {
+            recentWords.removeFirst()
+        }
+    }
+
     init {
         viewModelScope.launch {
             vocabRepo.ensureLoaded()
@@ -141,34 +152,52 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     private suspend fun pickNextWord(): Word? = withContext(Dispatchers.IO) {
-        // 1. 优先查看短期重现队列
-        val deferIndex = deferQueue.indexOfFirst { sessionAnswerCount >= it.reappearAtAnswerCount }
+        // 1. 优先查看短期重现队列（已达到重现题数且不在冷却窗口内的词）
+        val deferIndex = deferQueue.indexOfFirst {
+            sessionAnswerCount >= it.reappearAtAnswerCount && it.word.word !in recentWords
+        }
         if (deferIndex >= 0) {
             val item = deferQueue.removeAt(deferIndex)
             return@withContext item.word
         }
 
-        // 2. 70% 概率从错词本抽取复习题，30% 概率抽新词
+        // 2. 错词本温和复习机制：
+        //    - 权重由原先过重的 70% 降低至 20%（平滑融入日常刷题节奏，不反客为主）；
+        //    - 严格排除当前冷却窗口（recentWords）以及等待短期重现（deferQueue）中的词。
         val wrongList = dao.observeWrongBook().first()
         val allWords = vocabRepo.getAllWords()
         if (allWords.isEmpty()) return@withContext null
 
         val allProgress = dao.observeAllProgress().first().associateBy { it.word }
+        val pendingDeferWords = deferQueue.map { it.word.word }.toSet()
 
-        if (wrongList.isNotEmpty() && Random.nextFloat() < 0.7f) {
-            val wrongCandidate = wrongList.random(Random)
-            val word = vocabRepo.getWord(wrongCandidate.word)
+        val eligibleWrong = wrongList.filter {
+            it.word !in recentWords && it.word !in pendingDeferWords
+        }
+
+        if (eligibleWrong.isNotEmpty() && Random.nextFloat() < 0.20f) {
+            val candidate = eligibleWrong.random(Random)
+            val word = vocabRepo.getWord(candidate.word)
             if (word != null) return@withContext word
         }
 
-        // 抽取未学或生词（排除已标记为熟词）
+        // 3. 抽取未掌握的新词/生词（排除熟词、冷却窗口以及排队中的重现词）
         val unmastered = allWords.filter { w ->
-            val p = allProgress[w.word]
-            p == null || (!p.isMastered && p.level < 3)
+            w.word !in recentWords && w.word !in pendingDeferWords && run {
+                val p = allProgress[w.word]
+                p == null || (!p.isMastered && p.level < 3)
+            }
         }
 
         if (unmastered.isNotEmpty()) {
             return@withContext unmastered.random(Random)
+        }
+
+        // 4. 兜底回退：若未掌握词已抽完，放宽限制，但依然绝对排除上一道刚答过的词
+        val lastWord = recentWords.lastOrNull()
+        val fallbackWords = allWords.filter { it.word != lastWord }
+        if (fallbackWords.isNotEmpty()) {
+            return@withContext fallbackWords.random(Random)
         }
 
         allWords.randomOrNull(Random)
@@ -183,6 +212,7 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
         val current = state.currentWord ?: return
 
         sessionAnswerCount++
+        recordRecentWord(current.word)
         val selectedOption = state.options[index]
         val isCorrect = selectedOption.isCorrect
 
@@ -204,8 +234,8 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
 
             val newProgress = if (isCorrect) {
                 val newReps = oldProgress.reps + 1
-                // 错题本词连对 3 次即可毕业出库
-                val outOfWrongBook = oldProgress.isWrongBook && newReps >= 3
+                // 错题在间隔复习中答对 1 次即可毕业移出错词本（保留曾错标记），避免反复惩罚
+                val outOfWrongBook = oldProgress.isWrongBook && newReps >= 1
                 oldProgress.copy(
                     level = maxOf(oldProgress.level, 2),
                     reps = newReps,
@@ -215,8 +245,8 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
                     updatedAt = now
                 )
             } else {
-                // 答错惩罚：进入错题本，归零连对，并安排 6 题后重现
-                deferQueue.add(DeferItem(current, sessionAnswerCount + 6))
+                // 答错惩罚：进入错题本，归零连对，并安排 8 题后重现强化
+                deferQueue.add(DeferItem(current, sessionAnswerCount + 8))
                 oldProgress.copy(
                     level = 0,
                     reps = 0,
@@ -271,6 +301,7 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
     fun rateCard(rating: Int) {
         val current = _uiState.value.currentWord ?: return
         sessionAnswerCount++
+        recordRecentWord(current.word)
 
         viewModelScope.launch(Dispatchers.IO) {
             val now = System.currentTimeMillis()
@@ -278,7 +309,7 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
 
             val updated = when (rating) {
                 0 -> {
-                    deferQueue.add(DeferItem(current, sessionAnswerCount + 6))
+                    deferQueue.add(DeferItem(current, sessionAnswerCount + 8))
                     old.copy(
                         level = 0,
                         reps = 0,
@@ -301,11 +332,12 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
                 }
                 2 -> {
                     val newReps = old.reps + 1
+                    val outOfWrongBook = old.isWrongBook && newReps >= 1
                     old.copy(
                         level = 2,
                         reps = newReps,
                         correctCount = old.correctCount + 1,
-                        isWrongBook = if (old.isWrongBook && newReps >= 3) false else old.isWrongBook,
+                        isWrongBook = if (outOfWrongBook) false else old.isWrongBook,
                         lastAnsweredAt = now,
                         updatedAt = now
                     )
