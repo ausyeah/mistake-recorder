@@ -376,9 +376,10 @@ class PdfExporter(private val mathRenderer: MathRenderer) {
 
                 // 4. 绘制选项
                 if (card.options.isNotEmpty()) {
-                    card.options.forEach { option ->
+                    card.options.forEachIndexed { optIndex, option ->
                         val optionTokens = mutableListOf<RichToken>()
-                        optionTokens.add(RichToken.TextToken("${option.key}. "))
+                        val label = option.label.ifBlank { com.mistakebook.domain.labelFor(optIndex) }
+                        optionTokens.add(RichToken.TextToken("$label. "))
                         optionTokens.addAll(tokenizeWithMath(option.text))
 
                         val optLines = layoutRichTokens(
