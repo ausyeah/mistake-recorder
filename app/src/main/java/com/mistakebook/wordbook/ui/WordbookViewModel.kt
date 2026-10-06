@@ -241,6 +241,17 @@ class WordbookViewModel(private val container: AppContainer) : ViewModel() {
 
             _uiState.update { it.copy(currentProgress = newProgress) }
         }
+
+        // 选对自动进入下一题：380ms 极短延迟（视觉保留绿标确认感，节奏紧凑跟手）
+        if (isCorrect) {
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(380L)
+                val s = _uiState.value
+                if (s.isAnswered && s.currentWord?.word == current.word && s.studyMode == StudyMode.QUIZ) {
+                    prepareNextQuestion()
+                }
+            }
+        }
     }
 
     /**

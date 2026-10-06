@@ -71,15 +71,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mistakebook.di.AppContainer
 import com.mistakebook.ui.common.containerViewModel
-import com.mistakebook.ui.theme.PaperBad
-import com.mistakebook.ui.theme.PaperBadBg
 import com.mistakebook.ui.theme.PaperBorderLight
 import com.mistakebook.ui.theme.PaperLv0
 import com.mistakebook.ui.theme.PaperLv1
 import com.mistakebook.ui.theme.PaperLv2
 import com.mistakebook.ui.theme.PaperLv3
 import com.mistakebook.ui.theme.PaperOk
-import com.mistakebook.ui.theme.PaperOkBg
+import com.mistakebook.ui.theme.PaperOkDark
 import com.mistakebook.ui.theme.PaperPrimary
 import com.mistakebook.ui.theme.PaperPrimaryTint
 import com.mistakebook.wordbook.data.Word
@@ -169,6 +167,11 @@ private fun WordbookHeaderSummary(
     wrongCount: Int,
     masteredCount: Int
 ) {
+    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val okColor = if (isDark) com.mistakebook.ui.theme.PaperOkDark else PaperOk
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val errorColor = MaterialTheme.colorScheme.error
+
     Surface(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
@@ -186,7 +189,7 @@ private fun WordbookHeaderSummary(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(PaperOk)
+                        .background(okColor)
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
@@ -200,12 +203,14 @@ private fun WordbookHeaderSummary(
                 Text(
                     text = "待复习错词: $wrongCount",
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (wrongCount > 0) PaperBad else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (wrongCount > 0) errorColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (wrongCount > 0) FontWeight.Bold else FontWeight.Normal
                 )
                 Text(
                     text = "已掌握: $masteredCount",
                     style = MaterialTheme.typography.labelSmall,
-                    color = PaperPrimary
+                    color = primaryColor,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -227,24 +232,28 @@ private fun WordbookTabBar(
     TabRow(
         selectedTabIndex = selectedTab.ordinal,
         containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = PaperPrimary,
+        contentColor = MaterialTheme.colorScheme.primary,
         indicator = { tabPositions ->
             TabRowDefaults.SecondaryIndicator(
                 modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab.ordinal]),
-                color = PaperPrimary,
+                color = MaterialTheme.colorScheme.primary,
                 height = 3.dp
             )
         }
     ) {
         tabs.forEach { (tab, title) ->
+            val isSelected = selectedTab == tab
             Tab(
-                selected = selectedTab == tab,
+                selected = isSelected,
                 onClick = { onSelectTab(tab) },
+                selectedContentColor = MaterialTheme.colorScheme.primary,
+                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 text = {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Normal
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                     )
                 }
             )
@@ -404,7 +413,11 @@ private fun StudyView(
                     )
                 }
 
-                if (state.isAnswered) {
+                // 答错时展示「下一题」大按钮供看清错因并手动推进；
+                // 答对时由系统 380ms 跟手自动切题，无需手动点击。
+                val selectedOption = state.options.getOrNull(state.selectedOptionIndex ?: -1)
+                val isWrong = state.isAnswered && (selectedOption?.isCorrect == false)
+                if (isWrong) {
                     item {
                         Spacer(Modifier.height(16.dp))
                         Button(
@@ -413,11 +426,11 @@ private fun StudyView(
                                 .fillMaxWidth()
                                 .height(50.dp),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = PaperPrimary)
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
-                            Text("下一题", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text("下一题", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                             Spacer(Modifier.width(6.dp))
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                         }
                     }
                 }
@@ -431,9 +444,9 @@ private fun StudyView(
                                 .fillMaxWidth()
                                 .height(50.dp),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = PaperPrimary)
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
-                            Text("点击揭晓完整释义", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text("点击揭晓完整释义", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                         }
                     } else {
                         // 四档掌握度打分按钮
@@ -445,7 +458,7 @@ private fun StudyView(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                RateButton("忘记了", PaperBad, Modifier.weight(1f)) { viewModel.rateCard(0) }
+                                RateButton("忘记了", MaterialTheme.colorScheme.error, Modifier.weight(1f)) { viewModel.rateCard(0) }
                                 RateButton("模糊", PaperLv1, Modifier.weight(1f)) { viewModel.rateCard(1) }
                             }
                             Row(
@@ -486,18 +499,92 @@ private fun QuizOptionRow(
     isAnswered: Boolean,
     onSelect: () -> Unit
 ) {
+    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+
+    // 背景色搭配：深浅色自适应，彻底解决深色模式下冒出惨白底与白字冲突的问题
     val bgColor = when {
         !isAnswered -> MaterialTheme.colorScheme.surface
-        option.isCorrect -> PaperOkBg
-        option.isSelected && !option.isCorrect -> PaperBadBg
-        else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+        option.isCorrect -> {
+            if (isDark) Color(0xFF133221) else Color(0xFFEDFBF1)
+        }
+        option.isSelected && !option.isCorrect -> {
+            if (isDark) Color(0xFF381518) else Color(0xFFFFF0F0)
+        }
+        else -> {
+            MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+        }
     }
 
+    // 边框色
     val borderColor = when {
         !isAnswered -> MaterialTheme.colorScheme.outline
-        option.isCorrect -> PaperOk
-        option.isSelected && !option.isCorrect -> PaperBad
-        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+        option.isCorrect -> {
+            if (isDark) Color(0xFF40C057) else Color(0xFF2B8A3E)
+        }
+        option.isSelected && !option.isCorrect -> {
+            if (isDark) Color(0xFFFF6B6B) else Color(0xFFC92A2A)
+        }
+        else -> {
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+        }
+    }
+
+    // 选项字母圆形徽标背景色与文字色
+    val badgeBgColor = when {
+        isAnswered && option.isCorrect -> {
+            if (isDark) Color(0xFF2B8A3E) else Color(0xFF2B8A3E)
+        }
+        isAnswered && option.isSelected -> {
+            if (isDark) Color(0xFFC92A2A) else Color(0xFFC92A2A)
+        }
+        else -> {
+            if (isDark) Color(0xFF2B3356) else PaperPrimaryTint
+        }
+    }
+
+    val badgeTextColor = when {
+        isAnswered && (option.isCorrect || option.isSelected) -> Color.White
+        else -> {
+            if (isDark) Color(0xFF91A7FF) else PaperPrimary
+        }
+    }
+
+    // 词性标签颜色
+    val posColor = when {
+        isAnswered && option.isCorrect -> {
+            if (isDark) Color(0xFF69DB7C) else Color(0xFF2B8A3E)
+        }
+        isAnswered && option.isSelected && !option.isCorrect -> {
+            if (isDark) Color(0xFFFFA8A8) else Color(0xFFC92A2A)
+        }
+        isAnswered -> {
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        }
+        else -> {
+            MaterialTheme.colorScheme.primary
+        }
+    }
+
+    // 释义正文颜色：确保在深色或浅色卡片上对比度均在 10:1 以上清晰可读
+    val meaningColor = when {
+        isAnswered && option.isCorrect -> {
+            if (isDark) Color(0xFFE6FCED) else Color(0xFF144D29)
+        }
+        isAnswered && option.isSelected && !option.isCorrect -> {
+            if (isDark) Color(0xFFFFE8E8) else Color(0xFF821818)
+        }
+        isAnswered -> {
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        }
+        else -> {
+            MaterialTheme.colorScheme.onSurface
+        }
+    }
+
+    // 反馈图标颜色
+    val iconColor = when {
+        option.isCorrect -> if (isDark) Color(0xFF51CF66) else Color(0xFF2B8A3E)
+        else -> if (isDark) Color(0xFFFF6B6B) else Color(0xFFC92A2A)
     }
 
     Card(
@@ -519,20 +606,14 @@ private fun QuizOptionRow(
                 modifier = Modifier
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(
-                        when {
-                            isAnswered && option.isCorrect -> PaperOk
-                            isAnswered && option.isSelected -> PaperBad
-                            else -> PaperPrimaryTint
-                        }
-                    ),
+                    .background(badgeBgColor),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = option.label,
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
-                    color = if (isAnswered && (option.isCorrect || option.isSelected)) Color.White else PaperPrimary
+                    color = badgeTextColor
                 )
             }
 
@@ -543,22 +624,23 @@ private fun QuizOptionRow(
                     Text(
                         text = option.word.pos,
                         style = MaterialTheme.typography.labelSmall,
-                        color = PaperPrimary,
+                        color = posColor,
                         fontWeight = FontWeight.Bold
                     )
                 }
                 Text(
                     text = option.word.meaning,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = meaningColor,
+                    fontWeight = if (isAnswered && (option.isCorrect || option.isSelected)) FontWeight.Medium else FontWeight.Normal
                 )
             }
 
             if (isAnswered) {
                 if (option.isCorrect) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = PaperOk)
+                    Icon(Icons.Default.Check, contentDescription = null, tint = iconColor)
                 } else if (option.isSelected) {
-                    Icon(Icons.Default.Close, contentDescription = null, tint = PaperBad)
+                    Icon(Icons.Default.Close, contentDescription = null, tint = iconColor)
                 }
             }
         }
@@ -732,6 +814,7 @@ private fun StatsView(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(12.dp))
+                    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
                     val progressRatio = (state.masteredCount.toFloat() / state.totalVocabCount.coerceAtLeast(1)).coerceIn(0f, 1f)
                     LinearProgressIndicator(
                         progress = { progressRatio },
@@ -739,8 +822,8 @@ private fun StatsView(
                             .fillMaxWidth()
                             .height(8.dp)
                             .clip(RoundedCornerShape(4.dp)),
-                        color = PaperPrimary,
-                        trackColor = PaperPrimaryTint
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = if (isDark) Color(0xFF282D42) else PaperPrimaryTint
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
@@ -753,6 +836,8 @@ private fun StatsView(
         }
 
         item {
+            val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+            val okColor = if (isDark) com.mistakebook.ui.theme.PaperOkDark else PaperOk
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -761,14 +846,14 @@ private fun StatsView(
                     title = "今日已学",
                     value = "${state.studiedTodayCount}",
                     unit = "词",
-                    color = PaperOk,
+                    color = okColor,
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
                     title = "待复习错词",
                     value = "${state.wrongBookCount}",
                     unit = "词",
-                    color = if (state.wrongBookCount > 0) PaperBad else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (state.wrongBookCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -901,7 +986,7 @@ private fun WordItemCard(
                         Text(
                             text = "连对 ${progress.reps}/3",
                             style = MaterialTheme.typography.labelSmall,
-                            color = PaperBad
+                            color = MaterialTheme.colorScheme.error
                         )
                     }
                 }
@@ -917,7 +1002,7 @@ private fun WordItemCard(
 
             if (showRemove) {
                 TextButton(onClick = onRemove) {
-                    Text("移出", color = PaperBad, fontSize = 13.sp)
+                    Text("移出", color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
                 }
             }
         }

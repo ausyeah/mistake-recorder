@@ -109,5 +109,9 @@
    - 将 `vocab.json`（4356 词）与 `vocab-index.json` 作为本地内置 Assets 加载；
    - 完整还原 L1（同根同词性）-> L2（同根跨词性）-> L3（同词性）-> L4（全库兜底）四层智能干扰项生成算法，并通过 `synGroups` 严格剔除同义词，杜绝双答案逻辑缺陷；
    - 提供单元测试重载构造函数，使算法能够脱离 Android Context 在纯 JVM 单元测试中执行校验。
+5. **刷题跟手节奏与深色反馈对比度重塑 ([WordbookViewModel.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/wordbook/ui/WordbookViewModel.kt), [WordbookScreen.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/wordbook/ui/WordbookScreen.kt))**：
+   - 答对即时触发 380ms 极快且跟手的自动下一题调度，消除用户反复手动点击下一题的疲劳感；答错时保留「下一题」手动推进按钮，方便从容看清错因与正解；
+   - 彻底修复深色模式下作答反馈卡片误用浅底导致白字完全看不清的问题：引入深浅色自适应容器与高对比度文字体系（深色模式下正确为沉浸墨绿 `#133221` 配亮薄荷白字 `#E6FCED`，错误为暗绯红 `#381518` 配浅粉白字 `#FFE8E8`，对比度均 > 10:1）。
+
 
 
