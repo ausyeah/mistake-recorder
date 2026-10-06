@@ -7,7 +7,9 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -91,6 +93,8 @@ private val MistakeBookTypography = Typography(
     )
 )
 
+val LocalDarkTheme = compositionLocalOf { false }
+
 /**
  * 全局纸质化主题系统（支持浅色暖纸与深色墨砚自适应）。
  */
@@ -110,11 +114,13 @@ fun MistakeBookTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = MistakeBookTypography,
-        content = content
-    )
+    CompositionLocalProvider(LocalDarkTheme provides darkTheme) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = MistakeBookTypography,
+            content = content
+        )
+    }
 }
 
 @Composable

@@ -92,6 +92,7 @@ class SettingsStore(context: Context) {
             },
             llmProfiles = profiles,
             activeProfileId = activeId,
+            themeMode = ThemeMode.fromKey(prefs[KEY_THEME_MODE]),
             // mineruModelVersion / ocrLanguage / forceOcr 已固定，不再从 prefs 读。
             // 旧版本存下的值会被自然忽略——它们不再是 SettingsSnapshot 的构造参数。
             attachOriginalImage = prefs[KEY_ATTACH_IMAGE] ?: true,
@@ -293,6 +294,17 @@ class SettingsStore(context: Context) {
         }
     }
 
+    // ===== 外观与主题 =====
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        val value = when (mode) {
+            ThemeMode.SYSTEM -> "system"
+            ThemeMode.LIGHT -> "light"
+            ThemeMode.DARK -> "dark"
+        }
+        editString(KEY_THEME_MODE, value)
+    }
+
     // ===== 清空（恢复出厂） =====
 
     fun clearSecrets() {
@@ -322,6 +334,7 @@ class SettingsStore(context: Context) {
 
         // KEY_MINERU_MODEL / KEY_OCR_LANGUAGE / KEY_FORCE_OCR 已删：
         // 对应设置项固定为 vlm / ch / 开启，不再可配。旧库里的这些键会被忽略。
+        val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         val KEY_ATTACH_IMAGE = booleanPreferencesKey("attach_original_image")
         val KEY_IMAGE_LONG_EDGE = intPreferencesKey("image_long_edge")
         val KEY_PRINT_IMAGE = booleanPreferencesKey("print_include_image")

@@ -133,6 +133,11 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit) {
                 onShowModelsClick = { showModels = true }
             )
 
+            ThemeModeSection(
+                state = state,
+                viewModel = viewModel
+            )
+
             MineruParamsSection(
                 state = state,
                 viewModel = viewModel

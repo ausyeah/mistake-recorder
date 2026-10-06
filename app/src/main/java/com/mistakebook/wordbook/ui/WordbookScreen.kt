@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mistakebook.di.AppContainer
 import com.mistakebook.ui.common.containerViewModel
+import com.mistakebook.ui.theme.LocalDarkTheme
 import com.mistakebook.ui.theme.PaperBorderLight
 import com.mistakebook.ui.theme.PaperLv0
 import com.mistakebook.ui.theme.PaperLv1
@@ -167,7 +168,7 @@ private fun WordbookHeaderSummary(
     wrongCount: Int,
     masteredCount: Int
 ) {
-    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDark = LocalDarkTheme.current
     val okColor = if (isDark) com.mistakebook.ui.theme.PaperOkDark else PaperOk
     val primaryColor = MaterialTheme.colorScheme.primary
     val errorColor = MaterialTheme.colorScheme.error
@@ -499,7 +500,7 @@ private fun QuizOptionRow(
     isAnswered: Boolean,
     onSelect: () -> Unit
 ) {
-    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDark = LocalDarkTheme.current
 
     // 背景色搭配：深浅色自适应，彻底解决深色模式下冒出惨白底与白字冲突的问题
     val bgColor = when {
@@ -814,7 +815,7 @@ private fun StatsView(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(12.dp))
-                    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+                    val isDark = LocalDarkTheme.current
                     val progressRatio = (state.masteredCount.toFloat() / state.totalVocabCount.coerceAtLeast(1)).coerceIn(0f, 1f)
                     LinearProgressIndicator(
                         progress = { progressRatio },
@@ -836,7 +837,7 @@ private fun StatsView(
         }
 
         item {
-            val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+            val isDark = LocalDarkTheme.current
             val okColor = if (isDark) com.mistakebook.ui.theme.PaperOkDark else PaperOk
             Row(
                 modifier = Modifier.fillMaxWidth(),

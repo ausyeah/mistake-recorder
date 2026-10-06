@@ -12,9 +12,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -51,11 +55,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.mistakebook.R
 import com.mistakebook.data.prefs.LlmProfile
+import com.mistakebook.data.prefs.ThemeMode
 import com.mistakebook.domain.ErrorReason
 
 @Composable
@@ -690,6 +697,113 @@ internal fun LlmProfilesSection(
         if (!state.snapshot.llmConfigured) {
             Spacer(Modifier.height(8.dp))
             FirstRunHint(R.string.settings_hint_llm_key)
+        }
+    }
+}
+
+@Composable
+internal fun ThemeModeSection(
+    state: SettingsUiState,
+    viewModel: SettingsViewModel
+) {
+    SettingsGroup(title = stringResource(R.string.settings_theme_title)) {
+        Text(
+            text = stringResource(R.string.settings_theme_desc),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ThemeOptionCard(
+                title = stringResource(R.string.settings_theme_system),
+                icon = Icons.Default.BrightnessAuto,
+                selected = state.snapshot.themeMode == ThemeMode.SYSTEM,
+                onClick = { viewModel.setThemeMode(ThemeMode.SYSTEM) },
+                modifier = Modifier.weight(1f)
+            )
+            ThemeOptionCard(
+                title = stringResource(R.string.settings_theme_light),
+                icon = Icons.Default.LightMode,
+                selected = state.snapshot.themeMode == ThemeMode.LIGHT,
+                onClick = { viewModel.setThemeMode(ThemeMode.LIGHT) },
+                modifier = Modifier.weight(1f)
+            )
+            ThemeOptionCard(
+                title = stringResource(R.string.settings_theme_dark),
+                icon = Icons.Default.DarkMode,
+                selected = state.snapshot.themeMode == ThemeMode.DARK,
+                onClick = { viewModel.setThemeMode(ThemeMode.DARK) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        val hintText = when (state.snapshot.themeMode) {
+            ThemeMode.SYSTEM -> stringResource(R.string.settings_theme_hint_system)
+            ThemeMode.LIGHT -> stringResource(R.string.settings_theme_hint_light)
+            ThemeMode.DARK -> stringResource(R.string.settings_theme_hint_dark)
+        }
+        Text(
+            text = hintText,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
+}
+
+@Composable
+private fun ThemeOptionCard(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+    }
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = MaterialTheme.shapes.small,
+        color = containerColor,
+        border = BorderStroke(if (selected) 2.dp else 1.dp, borderColor)
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                color = if (selected) MaterialTheme.colorScheme.onSurface else contentColor,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
         }
     }
 }

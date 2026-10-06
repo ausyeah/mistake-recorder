@@ -113,5 +113,28 @@
    - 答对即时触发 380ms 极快且跟手的自动下一题调度，消除用户反复手动点击下一题的疲劳感；答错时保留「下一题」手动推进按钮，方便从容看清错因与正解；
    - 彻底修复深色模式下作答反馈卡片误用浅底导致白字完全看不清的问题：引入深浅色自适应容器与高对比度文字体系（深色模式下正确为沉浸墨绿 `#133221` 配亮薄荷白字 `#E6FCED`，错误为暗绯红 `#381518` 配浅粉白字 `#FFE8E8`，对比度均 > 10:1）。
 
+## 全局深色模式可配置化与动态切换 (2024-10)
 
+### 背景与诉求
+用户要求深色模式必须能够在「设置」页面自由调节，支持三档选项：
+1. **跟随系统**：默认选项，随 Android 系统主题自适应切换浅色暖纸或深色墨砚；
+2. **浅色模式**：强制使用温润暖纸（Warm Paper）经典浅色风格，不受系统暗色模式影响；
+3. **深色模式**：强制使用墨砚夜读（Dark Ink Paper）深色护眼风格，不受系统亮色模式影响。
 
+### 决策内容
+1. **枚举定义与持久化存储 ([SettingsSnapshot.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/data/prefs/SettingsSnapshot.kt), [SettingsStore.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/data/prefs/SettingsStore.kt))**：
+   - 定义 `enum class ThemeMode { SYSTEM, LIGHT, DARK }`，默认值为 `SYSTEM`；
+   - 通过 DataStore Preferences 键 `theme_mode` 持久化字符串（`"system"`, `"light"`, `"dark"`），保证重启后状态长久保持；
+   - `SettingsStore` 暴露 `suspend fun setThemeMode(mode: ThemeMode)` 与响应式快照。
+2. **Activity 级响应式主题绑定 ([MainActivity.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/MainActivity.kt))**：
+   - 在 `MainActivity.setContent` 中以 Compose 状态收集 `settingsStore.settings`；
+   - 动态计算 `isDark = when (settings.themeMode) { SYSTEM -> isSystemInDarkTheme(), LIGHT -> false, DARK -> true }`；
+   - 注入 `MistakeBookTheme(darkTheme = isDark)`，在用户切换设置项时实现毫秒级即时全局重绘生效，无需重启应用；
+   - 状态栏图标明暗通过 `WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme` 实时自适应同步。
+3. **全局深暗态环境透传 ([Theme.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/ui/theme/Theme.kt), [WordbookScreen.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/wordbook/ui/WordbookScreen.kt))**：
+   - 在 `MistakeBookTheme` 中提供 `LocalDarkTheme = compositionLocalOf { false }`；
+   - 将《单词书》模块中直接调用 `isSystemInDarkTheme()` 的局部组件全量迁移至 `LocalDarkTheme.current`，保证无论系统处于何种模式，只要在应用设置中强制选择浅色或深色，《单词书》词库卡片与反馈色条均同频即时响应。
+4. **设置界面现代卡片式交互 ([SettingsSections.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/ui/settings/SettingsSections.kt), [SettingsScreen.kt](file:///e:/mistake-recorder-0.0.3/mistake-recorder/app/src/main/java/com/mistakebook/ui/settings/SettingsScreen.kt))**：
+   - 在设置页中提供「外观与主题」专属配置卡片；
+   - 采用 3 个并排的现代化微交互选择卡片（`ThemeOptionCard`），配备 `BrightnessAuto`、`LightMode`、`DarkMode` 专属矢量图标与主色加粗选中高亮轮廓；
+   - 底部动态附注当前主题档位的说明文案，指引明确。

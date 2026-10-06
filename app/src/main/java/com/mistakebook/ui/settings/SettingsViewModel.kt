@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.mistakebook.data.prefs.LlmProfile
 import com.mistakebook.data.prefs.SettingsSnapshot
 import com.mistakebook.data.prefs.SettingsStore
+import com.mistakebook.data.prefs.ThemeMode
 import com.mistakebook.di.AppContainer
 import com.mistakebook.net.ApiResult
 import com.mistakebook.net.ApiError
@@ -185,6 +186,10 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setReminderTime(hour: Int, minute: Int) = viewModelScope.launch {
         store.setReminderTime(hour, minute)
+    }
+
+    fun setThemeMode(mode: ThemeMode) = viewModelScope.launch {
+        store.setThemeMode(mode)
     }
 
     fun testMineru() {

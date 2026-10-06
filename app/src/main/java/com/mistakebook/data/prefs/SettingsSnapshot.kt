@@ -1,6 +1,23 @@
 package com.mistakebook.data.prefs
 
 /**
+ * 主题显示模式。
+ */
+enum class ThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK;
+
+    companion object {
+        fun fromKey(key: String?): ThemeMode = when (key?.lowercase()) {
+            "light" -> LIGHT
+            "dark" -> DARK
+            else -> SYSTEM
+        }
+    }
+}
+
+/**
  * 生效中的设置快照：SettingsStore 每次发射都会重新拼一份。
  *
  * 读取优先级：用户填写的值 > buildConfig 预填（仅 debug）> 内置常量。
@@ -9,6 +26,7 @@ data class SettingsSnapshot(
     val mineruKey: String = "",
     val llmProfiles: List<LlmProfile> = emptyList(),
     val activeProfileId: String? = null,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val attachOriginalImage: Boolean = true,
     val imageLongEdgePx: Int = 1280,
     val printIncludeImage: Boolean = false,

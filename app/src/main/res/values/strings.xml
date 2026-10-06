@@ -229,6 +229,16 @@
 
     <string name="settings_attach_image">识别时附带原图给大模型</string>
 
+    <!-- 外观与主题 -->
+    <string name="settings_theme_title">外观与主题</string>
+    <string name="settings_theme_desc">设置应用的显示色彩风格，切换即时生效</string>
+    <string name="settings_theme_system">跟随系统</string>
+    <string name="settings_theme_light">浅色模式</string>
+    <string name="settings_theme_dark">深色模式</string>
+    <string name="settings_theme_hint_system">当前跟随系统设置自适应切换浅色暖纸或深色墨砚</string>
+    <string name="settings_theme_hint_light">已固定使用经典浅色暖纸护眼主题</string>
+    <string name="settings_theme_hint_dark">已固定使用墨砚深色夜读主题</string>
+
     <string name="settings_print_defaults">打印默认项</string>
     <string name="settings_review_reminder">每日复习提醒</string>
     <string name="settings_reminder_time">提醒时间</string>

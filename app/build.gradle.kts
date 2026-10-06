@@ -81,9 +81,9 @@ android {
         applicationId = "com.mistakebook$appIdSuffix"
         minSdk = 26
         targetSdk = 35
-        // versionCode 必须单调递增：1 = v0.0.1, 2 = v0.0.2, 3 = v0.0.3, 4 = v0.0.4, 5 = v0.0.5
-        versionCode = 5
-        versionName = "0.0.5"
+        // versionCode 必须单调递增：1 = v0.0.1, 2 = v0.0.2, 3 = v0.0.3, 4 = v0.0.4, 5 = v0.0.5, 6 = v0.0.6
+        versionCode = 6
+        versionName = "0.0.6"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
