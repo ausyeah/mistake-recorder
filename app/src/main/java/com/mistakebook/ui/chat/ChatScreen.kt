@@ -88,6 +88,10 @@ import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
+import java.io.File
 
 
 /**
@@ -166,6 +170,16 @@ fun ChatScreen(
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let(viewModel::onAttachmentPicked) }
+
+    val context = LocalContext.current
+    var tempCameraUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            tempCameraUri?.let(viewModel::onAttachmentPicked)
+        }
+    }
 
     // 首次进入题目会话时预填首问，**不自动发送**。
     //
@@ -266,6 +280,13 @@ fun ChatScreen(
     if (showAttachSheet) {
         AttachmentSourceSheet(
             onPickImage = { imagePicker.launch(IMAGE_MIME_TYPES) },
+            onTakePhoto = {
+                val dir = File(context.cacheDir, "camera").apply { mkdirs() }
+                val file = File(dir, "chat_photo_${System.currentTimeMillis()}.jpg")
+                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                tempCameraUri = uri
+                cameraLauncher.launch(uri)
+            },
             onPickFile = { filePicker.launch(DOCUMENT_MIME_TYPES) },
             onDismiss = { showAttachSheet = false }
         )
@@ -519,7 +540,7 @@ private fun MessageBubble(
                 if (thinking.isNotBlank()) {
                     ThinkingBlock(
                         text = thinking,
-                        streaming = isStreaming && answer.isBlank()
+                        streaming = isStreaming
                     )
                     if (answer.isNotBlank()) Spacer(Modifier.height(8.dp))
                 }
@@ -678,8 +699,12 @@ private fun StatusRow(
  */
 @Composable
 private fun ThinkingBlock(text: String, streaming: Boolean) {
-    var expanded by remember { mutableStateOf(streaming) }
-    LaunchedEffect(streaming) { expanded = streaming }
+    var expanded by remember { mutableStateOf(true) }
+    LaunchedEffect(streaming) {
+        if (!streaming) {
+            expanded = false
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -816,11 +841,20 @@ private fun ChatInputBar(
 @Composable
 private fun AttachmentSourceSheet(
     onPickImage: () -> Unit,
+    onTakePhoto: () -> Unit,
     onPickFile: () -> Unit,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(bottom = 24.dp)) {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.chat_attach_camera)) },
+                leadingContent = { Icon(Icons.Default.PhotoCamera, contentDescription = null) },
+                modifier = Modifier.clickable {
+                    onDismiss()
+                    onTakePhoto()
+                }
+            )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.chat_attach_gallery)) },
                 leadingContent = { Icon(Icons.Default.Image, contentDescription = null) },

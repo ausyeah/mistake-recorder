@@ -410,12 +410,11 @@ class ChatViewModel(
          */
         suspend fun flush() {
             if (buffer.isEmpty() && thinking.isEmpty()) return
-            val answer = buffer.toString()
-            val thought = thinking.toString()
             buffer.setLength(0)
             thinking.setLength(0)
             lastWriteAt = System.currentTimeMillis()
-            repository.appendAssistantContent(assistantId, joinThinkingAndAnswer(answer, thought))
+            val fullContent = joinThinkingAndAnswer(fullAnswer.toString(), fullThinking.toString())
+            repository.updateAssistantContent(assistantId, fullContent)
         }
 
         try {

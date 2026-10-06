@@ -230,6 +230,10 @@ class ChatRepository(
         chatDao.appendContent(id, current.content + content, MessageStatus.STREAMING, System.currentTimeMillis())
     }
 
+    suspend fun updateAssistantContent(id: Long, content: String) {
+        chatDao.appendContent(id, content, MessageStatus.STREAMING, System.currentTimeMillis())
+    }
+
     suspend fun finishAssistantMessage(
         id: Long,
         status: MessageStatus,

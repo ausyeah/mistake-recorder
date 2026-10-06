@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -55,6 +56,8 @@ internal fun CropOverlay(
             modifier = Modifier.fillMaxSize()
         )
 
+        val currentPoints = remember { mutableListOf<Offset>() }
+
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
@@ -62,7 +65,10 @@ internal fun CropOverlay(
                     detectDragGestures(
                         onDragStart = { offset ->
                             if (maskMode) {
-                                onActiveStrokeChange(listOf(screenToBase(offset.x, offset.y)))
+                                currentPoints.clear()
+                                val startPoint = screenToBase(offset.x, offset.y)
+                                currentPoints.add(startPoint)
+                                onActiveStrokeChange(currentPoints.toList())
                             } else {
                                 onHandleDragStart(offset)
                             }
@@ -70,12 +76,14 @@ internal fun CropOverlay(
                         onDragEnd = {
                             if (maskMode) {
                                 onStrokeCommit()
+                                currentPoints.clear()
                             } else {
                                 onHandleDragEnd()
                             }
                         },
                         onDragCancel = {
                             if (maskMode) {
+                                currentPoints.clear()
                                 onActiveStrokeChange(emptyList())
                             } else {
                                 onHandleDragCancel()
@@ -85,13 +93,14 @@ internal fun CropOverlay(
                             change.consume()
                             if (maskMode) {
                                 val point = screenToBase(change.position.x, change.position.y)
-                                val last = activeStroke.lastOrNull()
+                                val last = currentPoints.lastOrNull()
                                 val lastOnScreen = last?.let { baseToScreen(it) }
                                 if (lastOnScreen == null ||
                                     abs(lastOnScreen.x - change.position.x) > 2f ||
                                     abs(lastOnScreen.y - change.position.y) > 2f
                                 ) {
-                                    onActiveStrokeChange(activeStroke + point)
+                                    currentPoints.add(point)
+                                    onActiveStrokeChange(currentPoints.toList())
                                 }
                             } else {
                                 onHandleDrag(dragAmount)
@@ -100,20 +109,32 @@ internal fun CropOverlay(
                     )
                 }
         ) {
-            if (maskMode) {
-                (strokes.map { it.points } + listOf(activeStroke))
-                    .filter { it.size >= 2 }
-                    .forEach { points ->
-                        for (i in 0 until points.size - 1) {
-                            drawLine(
-                                color = Color.White,
-                                start = baseToScreen(points[i]),
-                                end = baseToScreen(points[i + 1]),
-                                strokeWidth = brushWidthPx,
-                                cap = androidx.compose.ui.graphics.StrokeCap.Round
-                            )
-                        }
+            // 绘制遮罩笔迹：不论是否在涂鸦模式，已确认的遮罩笔迹都要呈现（让框选时也能明确知道被遮蔽区域）
+            // 在涂鸦模式下，额外包含正在绘制的一笔（activeStroke）
+            val allStrokes = if (maskMode && activeStroke.isNotEmpty()) {
+                strokes.map { it.points } + listOf(activeStroke)
+            } else {
+                strokes.map { it.points }
+            }
+
+            allStrokes.forEach { points ->
+                if (points.size == 1) {
+                    drawCircle(
+                        color = Color.White,
+                        radius = brushWidthPx / 2f,
+                        center = baseToScreen(points[0])
+                    )
+                } else if (points.size >= 2) {
+                    for (i in 0 until points.size - 1) {
+                        drawLine(
+                            color = Color.White,
+                            start = baseToScreen(points[i]),
+                            end = baseToScreen(points[i + 1]),
+                            strokeWidth = brushWidthPx,
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round
+                        )
                     }
+                }
             }
 
             val displayRect = rect.rotatedQuarters(rotationQuarter)

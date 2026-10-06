@@ -134,6 +134,7 @@ class ChatCompletionStream(
      */
     fun complete(profile: LlmProfile, request: ChatRequest): Flow<ChatStreamEvent> = flow {
         var deltas = 0
+        var thinkings = 0
         var failure: ApiError? = null
         var ended = false
 
@@ -148,7 +149,10 @@ class ChatCompletionStream(
                     }
 
                     is RawEvent.Thinking -> {
-                        if (event.text.isNotEmpty()) emit(ChatStreamEvent.Thinking(event.text))
+                        if (event.text.isNotEmpty()) {
+                            thinkings++
+                            emit(ChatStreamEvent.Thinking(event.text))
+                        }
                     }
 
                     is RawEvent.Ended -> {
@@ -169,17 +173,18 @@ class ChatCompletionStream(
         if (ended) return@flow
 
         // 一帧都没解出来：可能是服务端忽略了 stream 参数、返回体不是 SSE、
-        // 或者连不上。降级重试一次。
+        // 或者连不上。只要思考或正文吐出过任何一帧，就绝不能降级重发（否则会看到重复输出或长停顿）。
+        val totalEmitted = deltas + thinkings
         val reason = failure
-            ?: if (deltas == 0) ApiError(ApiErrorKind.BAD_RESPONSE, "模型未返回流式内容")
+            ?: if (totalEmitted == 0) ApiError(ApiErrorKind.BAD_RESPONSE, "模型未返回流式内容")
             else return@flow
 
-        if (!StreamFallback.shouldFallback(reason, deltas)) {
+        if (!StreamFallback.shouldFallback(reason, totalEmitted)) {
             if (failure != null) emit(ChatStreamEvent.Failed(reason))
             return@flow
         }
 
-        emitAll(nonStreaming(profile, request, deltas))
+        emitAll(nonStreaming(profile, request, totalEmitted))
     }
 
     // ------------------------------------------------------------ 内部事件
